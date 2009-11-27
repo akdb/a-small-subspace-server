@@ -14,7 +14,7 @@
 #if PY_VERSION_HEX < 0x02050000
 #include <unistd.h>
 typedef ssize_t         Py_ssize_t;
-#endif 
+#endif
 
 #include "asss.h"
 
@@ -43,6 +43,7 @@ typedef ssize_t         Py_ssize_t;
 
 #define PYCBPREFIX "PY-"
 #define PYINTPREFIX "PY-"
+#define PYADVPREFIX "PY-"
 
 #ifndef WIN32
 #define CHECK_SIGS
@@ -1004,6 +1005,20 @@ typedef struct {
 	PyObject *funcs;
 } pyint_generic_interface;
 
+typedef struct {
+	PyObject_HEAD
+	void *a;
+} pyadv_generic_adviser_object;
+
+typedef struct {
+	ADVISER_HEAD_DECL
+#define PY_ADV_MAGIC 0x31658310
+	unsigned py_adv_magic;
+	void *real_adviser;
+	Arena *arena;
+	PyObject *funcs;
+} pyadv_generic_adviser;
+
 
 local PyObject * call_gen_py_interface(const char *iid,
 		const char *method, PyObject *args, Arena *arena)
@@ -1037,6 +1052,7 @@ local PyObject * call_gen_py_interface(const char *iid,
 #include "py_types.inc"
 #include "py_callbacks.inc"
 #include "py_interfaces.inc"
+#include "py_advisers.inc"
 
 
 local void py_newplayer(Player *p, int isnew)
@@ -1247,6 +1263,56 @@ local PyObject *mthd_get_interface(PyObject *self, PyObject *args)
 	}
 }
 
+//create the definition, then wrap all of those with the same python type.
+//stick them in a python list and ship em out (memory leaks be damned)
+//should probably fix that later
+
+local PyObject *mthd_get_adviser_list(PyObject *self, PyObject *args)
+{
+	char *aid;
+	Arena *arena = ALLARENAS;
+	PyObject *l;
+	LinkedList *list;
+	Link *link;
+	pyadv_generic_adviser_object *o;
+	PyTypeObject *typeo;
+	void *a;
+
+	if (!PyArg_ParseTuple(args, "s|O&", &aid, cvt_p2c_arena, &arena))
+		return NULL;
+
+	list = LLAlloc();
+
+	LOCK();
+	mm->GetAdviserList(aid, arena, list);
+	lm->Log('E', "got: %d", LLCount(list));
+
+	typeo = HashGetOne(pyadv_advs, aid);
+	if (typeo)
+	{
+		l = PyList_New(0);
+		FOR_EACH(list, a, link)
+		{
+			lm->Log('E', "advisered");
+			o = PyObject_New(pyadv_generic_adviser_object, typeo);
+			o->a = a;
+			PyList_Append(l, (PyObject *)o);
+		}
+
+	}
+	else
+	{
+		/* TODO: pyadv impl */
+	}
+
+	mm->ReleaseAdviserList(list);
+	LLFree(list);
+
+	UNLOCK();
+
+	return l;
+}
+
 
 local void destroy_interface(void *v)
 {
@@ -1275,6 +1341,24 @@ local void destroy_interface(void *v)
 
 	afree(i->head.iid);
 	afree(i);
+}
+
+local void destroy_adviser(void *v)
+{
+	pyadv_generic_adviser *a = v;
+
+	Py_DECREF(a->funcs);
+	a->funcs = NULL;
+
+	mm->UnregAdviser(a, a->arena);
+
+	if (a->real_adviser)
+	{
+		mm->UnregAdviser(a->real_adviser, a->arena);
+	}
+
+	afree(a->head.aid);
+	afree(a);
 }
 
 local PyObject *mthd_reg_interface(PyObject *self, PyObject *args)
@@ -1321,6 +1405,49 @@ local PyObject *mthd_reg_interface(PyObject *self, PyObject *args)
 	mm->RegInterface(newint, arena);
 
 	return PyCObject_FromVoidPtr(newint, destroy_interface);
+}
+
+local PyObject *mthd_reg_adviser(PyObject *self, PyObject *args)
+{
+	char *rawaid, pyaid[MAX_ID_LEN];
+	PyObject *obj, *aidobj;
+	Arena *arena = ALLARENAS;
+	pyadv_generic_adviser *newadv;
+	void *realadv;
+
+	if (!PyArg_ParseTuple(args, "O|O&", &obj, cvt_p2c_arena, &arena))
+		return NULL;
+
+	aidobj = PyObject_GetAttrString(obj, "aid");
+	if (!aidobj || !(rawaid = PyString_AsString(aidobj)))
+	{
+		PyErr_SetString(PyExc_TypeError, "adviser object missing 'aid'");
+		Py_XDECREF(aidobj);
+		return NULL;
+	}
+
+	snprintf(pyaid, sizeof(pyaid), "%s%s", PYINTPREFIX, rawaid);
+	Py_DECREF(aidobj);
+	realadv = HashGetOne(pyadv_impl_advs, pyaid);
+
+	Py_INCREF(obj);
+
+	newadv = amalloc(sizeof(*newadv));
+	newadv->head.magic = MODMAN_MAGIC;
+	newadv->head.aid = astrdup(pyaid);
+	newadv->py_adv_magic = PY_ADV_MAGIC;
+	newadv->real_adviser = realadv;
+	newadv->arena = arena;
+	newadv->funcs = obj;
+
+	/* this is the "real" one that other modules will make calls on */
+	if (realadv)
+		mm->RegAdviser(realadv, arena);
+	/* this is the dummy one registered with an iid that's only known
+	 * internally to pymod. */
+	mm->RegAdviser(newadv, arena);
+
+	return PyCObject_FromVoidPtr(newadv, destroy_adviser);
 }
 
 
@@ -1909,8 +2036,12 @@ local PyMethodDef asss_module_methods[] =
 		"calls some callback functions"},
 	{"get_interface", mthd_get_interface, METH_VARARGS,
 		"gets an interface object"},
+	{"get_adviser_list", mthd_get_adviser_list, METH_VARARGS,
+		"gets the list of advisers for an id/arena"},
 	{"reg_interface", mthd_reg_interface, METH_VARARGS,
 		"registers an interface implemented in python"},
+	{"reg_adviser", mthd_reg_adviser, METH_VARARGS,
+		"registers an adviser implemented in python"},
 	{"add_command", mthd_add_command, METH_VARARGS,
 		"registers a command implemented in python. the docstring of the "
 		"command function will be used for command helptext."},
@@ -2137,6 +2268,7 @@ EXPORT int MM_pymod(int action, Imodman *mm_, Arena *arena)
 		init_asss_module();
 		init_py_callbacks();
 		init_py_interfaces();
+		init_py_advisers();
 		init_py_commands();
 		/* extra init stuff */
 		{
@@ -2195,6 +2327,7 @@ EXPORT int MM_pymod(int action, Imodman *mm_, Arena *arena)
 		Py_XDECREF(cPickle);
 		mainloop->ClearTimer(pytmr_timer, NULL);
 		deinit_py_commands();
+		deinit_py_advisers();
 		deinit_py_interfaces();
 		deinit_py_callbacks();
 		Py_Finalize();
@@ -2216,4 +2349,5 @@ EXPORT int MM_pymod(int action, Imodman *mm_, Arena *arena)
 	}
 	return MM_FAIL;
 }
+
 
