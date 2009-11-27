@@ -22,17 +22,21 @@ typedef struct Ibalancer
 	 * Freqman will use this to ensure the teams are balanced.
 	 */
 	int (*GetPlayerMetric)(Player *p);
+	/* pyint: player -> int */
 
 	/**
 	 * TODO
 	 */
 	int (*GetMaxMetric)(Arena *arena, int freq);
+	/* pyint: arena, int -> int */
 
 	/**
 	 * This must yield the same value when freq1 and freq2 are interchanged.
 	 * TODO
 	 */
 	int (*GetMaximumDifference)(Arena *arena, int freq1, int freq2);
+	/* pyint: arena, int, int -> int */
+
 } Ibalancer;
 
 /** the adviser id for Aenforcer */
@@ -45,7 +49,7 @@ typedef struct Ibalancer
 typedef struct Aenforcer
 {
 	ADVISER_HEAD_DECL
-	/* pyadv: use, impl */
+	/* pyadv: use */
 
 	/**
 	 * Return the allowable ships (1 = Warbird, 128 = Shark, 255 = all ships).
@@ -56,6 +60,8 @@ typedef struct Aenforcer
 	 * Only write to err_buf if it's non-null
 	 */
 	shipmask_t (*GetAllowableShips)(Player *p, int ship, int freq, char *err_buf, int buf_len);
+	/* pyadv: player, int, int, string inout, int buflen -> int */
+	// python users: this will return a (int, string) tuple
 
 	/**
 	 * Returns a boolean indicating whether the player can switch to
@@ -63,6 +69,9 @@ typedef struct Aenforcer
 	 * Only write to err_buf it it's non-null
 	 */
 	int (*CanChangeFreq)(Player *p, int new_freq, char *err_buf, int buf_len);
+	/* pyadv: player, int, string inout, int buflen -> int */
+	// python users: this will return a (int, string) tuple
+
 } Aenforcer;
 
 /** the interface id for Ifreqman */
@@ -83,16 +92,23 @@ typedef struct Ifreqman
 	/** called when a player connects and needs to be assigned to a freq.
 	 */
 	void (*Initial)(Player *p, int *ship, int *freq);
+	/* pyint: player, int inout, int inout -> void */
+	// python users: this will return a (int, int) tuple
 
 	/** called when a player requests a ship change.
 	 * ship will initially contain the ship request, and freq will
 	 * contain the player's current freq. */
 	void (*ShipChange)(Player *p, int requested_ship, char *err_buf, int buf_len);
+	/* pyint: player, int, string inout, int buflen -> void */
+	// python users: this will return a string
 
 	/** called when a player requests a freq change.
 	 * ship will initially contain the player's ship, and freq will
 	 * contain the requested freq. */
 	void (*FreqChange)(Player *p, int requested_freq, char *err_buf, int buf_len);
+	/* pyint: player, int, string inout, int buflen -> void */
+	// python users: this will return a string
+
 } Ifreqman;
 
 #endif
