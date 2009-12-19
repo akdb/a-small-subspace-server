@@ -1048,6 +1048,49 @@ local PyObject * call_gen_py_interface(const char *iid,
 	return ret;
 }
 
+local PyObject * call_gen_py_adviser(const char *aid,
+		const char *method, PyObject *args, Arena *arena)
+{
+	pyadv_generic_adviser *a;
+	PyObject *ret = NULL;
+	Link *link;
+	LinkedList *list;
+
+	list = LLAlloc();
+	mm->GetAdviserList(aid, arena, list);
+
+	LOCK();
+	FOR_EACH(list, a, link)
+	{
+		if (a && a->py_adv_magic == PY_ADV_MAGIC)
+		{
+			if (a->funcs)
+			{
+				PyObject *func = PyObject_GetAttrString(a->funcs, (char*)method);
+				if (func)
+				{
+					ret = PyObject_Call(func, args, NULL);
+					Py_DECREF(func);
+				}
+			}
+			else
+			{
+				PyErr_SetString(PyExc_ValueError, "stale interface object");
+			}
+		}
+	}
+	UNLOCK();
+
+	mm->ReleaseAdviserList(list);
+	LLFree(list);
+
+	/* do this in common code instead of repeating it for each stub. */
+	Py_DECREF(args);
+	/* the refcount on a python interface struct is meaningless, so
+	 * don't bother releasing it. */
+	return ret;
+}
+
 /* this is where most of the generated code gets inserted */
 #include "py_types.inc"
 #include "py_callbacks.inc"
@@ -2349,5 +2392,4 @@ EXPORT int MM_pymod(int action, Imodman *mm_, Arena *arena)
 	}
 	return MM_FAIL;
 }
-
 
