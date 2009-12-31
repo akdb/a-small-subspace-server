@@ -1124,15 +1124,11 @@ def finish_pyint():
 	out.write("""
 local HashTable *pyint_ints;
 local HashTable *pyint_impl_ints;
-local HashTable *pyadv_advs;
-local HashTable *pyadv_impl_advs;
 
 local void init_py_interfaces(void)
 {
 	pyint_ints = HashAlloc();
 	pyint_impl_ints = HashAlloc();
-	pyadv_advs = HashAlloc();
-	pyadv_impl_advs = HashAlloc();
 """)
 	for line in pyint_init_code:
 		out.write(line)
@@ -1143,8 +1139,6 @@ local void deinit_py_interfaces(void)
 {
 """)
 	out.write("""\
-	HashFree(pyadv_advs);
-	HashFree(pyadv_impl_advs);
 	HashFree(pyint_ints);
 	HashFree(pyint_impl_ints);
 }
