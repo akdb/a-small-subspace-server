@@ -26,18 +26,11 @@
 
 
 
-typedef struct HashEntry
+struct HashEntry
 {
 	struct HashEntry *next;
 	void *p;
 	char key[1];
-} HashEntry;
-
-struct HashTable
-{
-	int bucketsm1, ents;
-	int maxload; /* percent out of 100 */
-	HashEntry **lists;
 };
 
 
@@ -679,20 +672,23 @@ static void check_rehash(HashTable *h)
 
 HashTable * HashAlloc(void)
 {
-	int i;
 	HashTable *h = amalloc(sizeof(*h));
+	HashInit(h);
+	return h;
+}
 
+void HashInit(HashTable *h)
+{
+	int i;
 	h->bucketsm1 = 15;
 	h->ents = 0;
 	h->lists = amalloc((h->bucketsm1 + 1) * sizeof(HashEntry *));
 	for (i = 0; i <= h->bucketsm1; i++)
 		h->lists[i] = NULL;
 	h->maxload = 75;
-
-	return h;
 }
 
-void HashFree(HashTable *h)
+void HashDeinit(HashTable *h)
 {
 	HashEntry *e, *n;
 	int i;
@@ -707,6 +703,11 @@ void HashFree(HashTable *h)
 		}
 	}
 	afree(h->lists);
+}
+
+void HashFree(HashTable *h)
+{
+	HashDeinit(h);
 	afree(h);
 }
 
@@ -879,6 +880,42 @@ int hash_enum_afree(const char *key, void *val, void *d)
 {
 	afree(val);
 	return FALSE;
+}
+
+LinkedList *HashGetKeys(HashTable *h)
+{
+	int i;
+	LinkedList *keys = LLAlloc();
+	Link *link;
+	const char *stored;
+
+	for (i = 0; i <= h->bucketsm1; i++)
+	{
+		HashEntry *e = h->lists[i];
+		while(e)
+		{
+			int add = TRUE;
+			FOR_EACH(keys, stored, link)
+			{
+				int hash1 = hash_string(stored);
+				int hash2 = hash_string(e->key);
+
+				if(hash1 == hash2)
+				{
+					add = FALSE;
+					break;
+				}
+			}
+
+			if(add)
+			{
+				LLAdd(keys, e->key);
+			}
+			e = e->next;
+		}
+	}
+
+	return keys;
 }
 
 

@@ -14,31 +14,31 @@
 
 /* authentication return codes */
 /* pyconst: define int, "AUTH_*" */
-#define AUTH_OK             0x00   /* success */
-#define AUTH_NEWNAME        0x01   /* fail */
-#define AUTH_BADPASSWORD    0x02   /* fail */
-#define AUTH_ARENAFULL      0x03   /* fail */
-#define AUTH_LOCKEDOUT      0x04   /* fail */
-#define AUTH_NOPERMISSION   0x05   /* fail */
-#define AUTH_SPECONLY       0x06   /* success */
-#define AUTH_TOOMANYPOINTS  0x07   /* fail */
-#define AUTH_TOOSLOW        0x08   /* fail */
-#define AUTH_NOPERMISSION2  0x09   /* fail */
-#define AUTH_NONEWCONN      0x0A   /* fail */
-#define AUTH_BADNAME        0x0B   /* fail */
-#define AUTH_OFFENSIVENAME  0x0C   /* fail */
-#define AUTH_NOSCORES       0x0D   /* success */
-#define AUTH_SERVERBUSY     0x0E   /* fail */
-#define AUTH_TOOLOWUSAGE    0x0F   /* fail */
-#define AUTH_NONAME         0x10   /* fail */
-#define AUTH_TOOMANYDEMO    0x11   /* fail */
-#define AUTH_NODEMO         0x12   /* fail */
-#define AUTH_CUSTOMTEXT     0x13   /* fail */      /* contonly */
+#define AUTH_OK              0x00   /* success */
+#define AUTH_NEWNAME         0x01   /* fail */
+#define AUTH_BADPASSWORD     0x02   /* fail */
+#define AUTH_ARENAFULL       0x03   /* fail */
+#define AUTH_LOCKEDOUT       0x04   /* fail */
+#define AUTH_NOPERMISSION    0x05   /* fail */
+#define AUTH_SPECONLY        0x06   /* success */
+#define AUTH_TOOMANYPOINTS   0x07   /* fail */
+#define AUTH_TOOSLOW         0x08   /* fail */
+#define AUTH_NOPERMISSION2   0x09   /* fail */
+#define AUTH_NONEWCONN       0x0A   /* fail */
+#define AUTH_BADNAME         0x0B   /* fail */
+#define AUTH_OFFENSIVENAME   0x0C   /* fail */
+#define AUTH_NOSCORES        0x0D   /* success */
+#define AUTH_SERVERBUSY      0x0E   /* fail */
+#define AUTH_TOOLOWUSAGE     0x0F   /* fail */
+#define AUTH_ASKDEMOGRAPHICS 0x10   /* success */
+#define AUTH_TOOMANYDEMO     0x11   /* fail */
+#define AUTH_NODEMO          0x12   /* fail */
+#define AUTH_CUSTOMTEXT      0x13   /* fail */      /* contonly */
 
 /** which authentication result codes result in the player moving
  ** forward in the login process. */
 #define AUTH_IS_OK(a) \
-	((a) == AUTH_OK || (a) == AUTH_SPECONLY || (a) == AUTH_NOSCORES)
+	((a) == AUTH_OK || (a) == AUTH_SPECONLY || (a) == AUTH_NOSCORES || (a) == AUTH_ASKDEMOGRAPHICS)
 
 
 /** an authentication module must fill in one of these structs to return
@@ -101,7 +101,7 @@ typedef void (*PlayerActionFunc)(Player *p, int action, Arena *arena);
 
 
 /** the interface id for Ifreqman */
-#define I_FREQMAN "freqman-1"
+/*#define I_FREQMAN "freqman-1"*/
 
 /** the interface struct for Ifreqman.
  * this interface is designed to be implemented by a non-core module,
@@ -117,34 +117,34 @@ typedef void (*PlayerActionFunc)(Player *p, int action, Arena *arena);
  *     *ship = p->p_ship; *freq = p->p_freq;
  * @endcode
  */
-typedef struct Ifreqman
+/*typedef struct Ifreqman
 {
 	INTERFACE_HEAD_DECL
-	/* pyint: use, impl */
+	/ * pyint: use, impl * /
 
 
-	/** called when a player connects and needs to be assigned to a freq.
+	/ ** called when a player connects and needs to be assigned to a freq.
 	 * ship will initially contain the requested ship, and freq will
-	 * contain -1. */
+	 * contain -1. * /
 	void (*InitialFreq)(Player *p, int *ship, int *freq);
-	/* pyint: player, int inout, int inout -> void */
+	/ * pyint: player, int inout, int inout -> void * /
 
-	/** called when a player requests a ship change.
+	/ ** called when a player requests a ship change.
 	 * ship will initially contain the ship request, and freq will
-	 * contain the player's current freq. */
+	 * contain the player's current freq. * /
 	void (*ShipChange)(Player *p, int *ship, int *freq);
-	/* pyint: player, int inout, int inout -> void */
+	/ * pyint: player, int inout, int inout -> void * /
 
-	/** called when a player requests a freq change.
+	/ ** called when a player requests a freq change.
 	 * ship will initially contain the player's ship, and freq will
-	 * contain the requested freq. */
+	 * contain the requested freq. * /
 	void (*FreqChange)(Player *p, int *ship, int *freq);
-	/* pyint: player, int inout, int inout -> void */
-} Ifreqman;
+	/ * pyint: player, int inout, int inout -> void * /
+} Ifreqman;*/
 
 
 /** the interface id for Iauth */
-#define I_AUTH "auth-1"
+#define I_AUTH "auth-2"
 
 /** the interface struct for Iauth.
  * the core module will call this when a player attempts to connect to

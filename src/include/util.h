@@ -202,16 +202,27 @@ int LLSort_StringCompare(const void *a, const void *b);
 
 /* hashing stuff */
 
-/** an opaque type for a hash table.
- * these hash tables support case-insensitive strings as keys. they
+typedef struct HashEntry HashEntry;
+
+/** these hash tables support case-insensitive strings as keys. they
  * support multiple values per key. they're reasonably memory efficient,
  * and auto-resize the table when the number of items passes various
  * thresholds.
  */
-typedef struct HashTable HashTable;
+typedef struct HashTable
+{
+	int bucketsm1, ents;
+	int maxload; /* percent out of 100 */
+	HashEntry **lists;
+} HashTable;
 
-/** allocate a new hash table. */
+/** allocate a new hash table and initializes it. */
 HashTable * HashAlloc(void);
+/** initializes a hash table. */
+void HashInit(HashTable *table);
+/** frees memory used inside the hashtable and removes all entries.
+ * the table is unusable after this unless you HashInit it again! */
+void HashDeinit(HashTable *table);
 /** frees a hash table and all associated memory. */
 void HashFree(HashTable *table);
 /** inserts a new key, value pair into the table.
@@ -240,6 +251,8 @@ void HashGetAppend(HashTable *table, const char *key, LinkedList *ll);
 void *HashGetOne(HashTable *table, const char *key);
 /** calls a function for each key, value pair in the table.
  * the function should return true if that item should be removed. */
+/** returns a list of all unique keys contained in the table. */
+LinkedList *HashGetKeys(HashTable *h);
 void HashEnum(HashTable *table,
 		int (*func)(const char *key, void *val, void *clos),
 		void *clos);
@@ -446,6 +459,18 @@ static const char * NAME(int v) \
 #define CLIP(x, low, high) \
 	do { if ((x) > (high)) (x) = (high); else if ((x) < (low)) (x) = (low); } while (0)
 
+/* type definitions */
+typedef enum CType
+{
+	CT_INTEGER,
+	CT_FLOAT,
+	CT_STRING,
+	CT_VOID,
+	CT_ARENA,
+	CT_PLAYER,
+	CT_PLAYERLIST,
+	CT_TARGET
+} CType;
 
 #endif
 
