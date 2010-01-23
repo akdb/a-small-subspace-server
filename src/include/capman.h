@@ -30,7 +30,7 @@
 
 
 /** the interface id for Icapman */
-#define I_CAPMAN "capman-3"
+#define I_CAPMAN "capman-4"
 
 /** the interface struct for Icapman */
 typedef struct Icapman
@@ -84,7 +84,7 @@ typedef struct Icapman
 
 
 /** the interface id for Igroupman */
-#define I_GROUPMAN "groupman-2"
+#define I_GROUPMAN "groupman-3"
 
 /** the interface struct for Igroupman.
  * you probably shouldn't use this.
@@ -168,7 +168,8 @@ typedef struct Igroupman
 #define CAP_IS_STAFF              "isstaff"
 /** if a player can sees all non-group-default players even if they lack isstaff */
 #define CAP_SEE_ALL_STAFF         "seeallstaff"
-
+/** if a player always forces a change with setship or setfreq instead of going by the arena freqman */
+#define CAP_FORCE_SHIPFREQCHANGE  "forceshipfreqchange"
 
 #endif
 

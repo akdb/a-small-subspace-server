@@ -20,6 +20,7 @@
 #define MSG_REMOTEPRIV   7   /**< cross-arena or cross-zone private messages */
 #define MSG_SYSOPWARNING 8   /**< red sysop warning text */
 #define MSG_CHAT         9   /**< chat channel messages */
+#define MSG_FUSCHIA      79  /**< special chat code that displays pink/purple (continuum only) */
 /* the following are for internal use only. they never appear in packets
  * sent over the network. */
 #define MSG_MODCHAT      10  /**< moderator chat messages (internal only) */
@@ -64,7 +65,7 @@ typedef unsigned short chat_mask_t;
 
 
 /** the interface id for Ichat */
-#define I_CHAT "chat-6"
+#define I_CHAT "chat-7"
 
 /** the interface struct for Ichat.
  * most of these functions take a printf-style format string plus
@@ -92,6 +93,7 @@ typedef struct Ichat
 	/** Sends a green arena message to a set of players. */
 	void (*SendSetMessage)(LinkedList *set, const char *format, ...)
 		ATTR_FORMAT(printf, 2, 3);
+	/* pyint: playerlist, formatted -> void */
 
 	/** Sends a green arena message plus sound code to a player. */
 	void (*SendSoundMessage)(Player *p, char sound, const char *format, ...)
@@ -101,11 +103,13 @@ typedef struct Ichat
 	/** Sends a green arena message plus sound code to a set of players. */
 	void (*SendSetSoundMessage)(LinkedList *set, char sound, const char *format, ...)
 		ATTR_FORMAT(printf, 3, 4);
+	/* pyint: playerlist, int, formatted -> void */
 
 	/** Sends an arbitrary chat message to a set of players. */
 	void (*SendAnyMessage)(LinkedList *set, char type, char sound,
 			Player *from, const char *format, ...)
 		ATTR_FORMAT(printf, 5, 6);
+	/* pyint: playerlist, int, int, player, formatted -> void */
 
 	/** Sends a green arena message to all players in an arena.
 	 * Use ALLARENAS for areana to send to all players in all arenas. */
@@ -140,6 +144,10 @@ typedef struct Ichat
 
 	/** Retrives the chat mask for a player. */
 	chat_mask_t (*GetPlayerChatMask)(Player *p);
+	/* pyint: player -> int */
+
+	/** Retrievs the remaining time (in seconds) on the chat mask */
+	int (*GetPlayerChatMaskTime)(Player *p);
 	/* pyint: player -> int */
 
 	/** Sets the chat mask for a player.

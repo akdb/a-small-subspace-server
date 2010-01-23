@@ -640,8 +640,8 @@ local void process_user_login(const char *data,int len)
 #endif
 			memset(&bdata->saved_score, 0, sizeof(bdata->saved_score));
 
-		ad.demodata = (pkt->Result == B2S_LOGIN_ASKDEMOGRAPHICS);
-		ad.code = AUTH_OK;
+		ad.demodata = (pkt->Result == B2S_LOGIN_ASKDEMOGRAPHICS || pkt->Result == B2S_LOGIN_DEMOVERSION);
+		ad.code = (pkt->Result == B2S_LOGIN_ASKDEMOGRAPHICS || pkt->Result == B2S_LOGIN_DEMOVERSION) ? AUTH_ASKDEMOGRAPHICS : AUTH_OK;
 		ad.authenticated = TRUE;
 		astrncpy(ad.name, (char*)pkt->Name, sizeof(ad.name));
 		astrncpy(ad.sendname, (char*)pkt->Name, sizeof(ad.sendname));
@@ -919,14 +919,27 @@ local void process_scorereset(const char *data,int len)
 		return;
 	}
 
-	lm->Log(L_INFO, "<billing_ssc> billing server requested score reset");
-
+	/* cfghelp: Billing:HonorScoreResetRequests, global, bool, def: 1
+	 * Whether to reset scores when the billing server says it is time to */
+	if (cfg->GetInt(GLOBAL, "Billing", "HonorScoreResetRequests", 1))
 	{
-		/* reset scores in public arenas */
 		Ipersist *persist = mm->GetInterface(I_PERSIST, ALLARENAS);
+
+		/* reset scores in public arenas */
 		if (persist)
+		{
 			persist->EndInterval(AG_PUBLIC, NULL, INTERVAL_RESET);
+			lm->Log(L_INFO, "<billing_ssc> billing server requested score reset, resetting scores");
+		}
+		else
+		{
+			lm->Log(L_WARN, "<billing_ssc> billing server requested score reset, persist interface unavailable!");
+		}
 		mm->ReleaseInterface(persist);
+	}
+	else
+	{
+		lm->Log(L_INFO, "<billing_ssc> billing server requested score reset, but honoring such requests is disabled");
 	}
 }
 
@@ -944,7 +957,7 @@ local void process_identity(const char *data, int len)
 
 local void logged_in(void)
 {
-	struct S2B_ServerCapabilities cpkt = {S2B_SERVER_CAPABILITIES,1,0};
+	struct S2B_ServerCapabilities cpkt = {S2B_SERVER_CAPABILITIES,1,1,0};
 
 	chat->SendArenaMessage(ALLARENAS,
 			"Notice: Connection to user database server restored. "

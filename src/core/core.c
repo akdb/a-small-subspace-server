@@ -366,20 +366,17 @@ int process_player_states(void *v)
 				if (player->p_ship == -1 || player->p_freq == -1)
 				{
 					Ifreqman *fm = mm->GetInterface(I_FREQMAN, player->arena);
-					int freq, ship;
-
-					ship = player->p_ship = requested_ship;
-					freq = player->p_freq = 0;
+					int freq = 0;
 
 					/* if this arena has a manager, use it */
 					if (fm)
 					{
-						fm->InitialFreq(player, &ship, &freq);
+						fm->Initial(player, &requested_ship, &freq);
 						mm->ReleaseInterface(fm);
 					}
 
 					/* set the results back */
-					player->p_ship = ship;
+					player->p_ship = requested_ship;
 					player->p_freq = freq;
 				}
 				/* then, sync scores */
@@ -513,12 +510,6 @@ void PLogin(Player *p, byte *opkt, int l)
 		/* name must be nul-terminated, also set name length limit at 19
 		 * characters. */
 		lp->name[19] = '\0';
-
-		if (lp->name[0] == '\0')
-		{
-			fail_login_with(p, AUTH_NONAME, "Your player name is blank", "name is blank");
-			return;
-		}
 
 		/* only allow printable characters in names, excluding colon.
 		 * while we're at it, remove leading, trailing, and series of
@@ -747,7 +738,7 @@ local const char *get_auth_code_msg(int code)
 		case AUTH_NOSCORES: return "the server is not recordng scores";
 		case AUTH_SERVERBUSY: return "the server is busy";
 		case AUTH_TOOLOWUSAGE: return "too low usage";
-		case AUTH_NONAME: return "no name sent";
+		case AUTH_ASKDEMOGRAPHICS: return "need demographics";
 		case AUTH_TOOMANYDEMO: return "too many demo players";
 		case AUTH_NODEMO: return "no demo players allowed";
 		default: return "???";

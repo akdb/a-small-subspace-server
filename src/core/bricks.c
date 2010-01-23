@@ -180,7 +180,7 @@ void ArenaAction(Arena *arena, int action)
 
 		for (i = SHIP_WARBIRD; i <= SHIP_SHARK; ++i)
 		{
-			bd->shipradius[i] = cfg->GetInt(arena->cfg, SHIP_NAMES[i], "Radius", 14);
+			bd->shipradius[i] = cfg->GetInt(arena->cfg, cfg->SHIP_NAMES[i], "Radius", 14);
 			if (bd->shipradius[i] == 0)
 				bd->shipradius[i] = 14;
 		}
@@ -350,6 +350,8 @@ void PBrick(Player *p, byte *pkt, int len)
 				if (q->p_ship == SHIP_SPEC)
 					continue;
 				if (q->p_freq == p->p_freq)
+					continue;
+				if (q->flags.is_dead)
 					continue;
 				ship = q->p_ship;
 
