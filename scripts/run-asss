@@ -61,8 +61,11 @@ while $CONTINUE; do
 
   log "asss started"
 
-  $ASSS $CHROOT
-  EXIT=$?
+  STDERRLOG=$ZONEDIR/log/stderr.log
+  echo "opening log file ==================================" >> $STDERRLOG
+  echo "`date '+%Y.%m.%d %H:%M:%S'`" >> $STDERRLOG
+  $ASSS $CHROOT 3>&1 1>&2 2>&3 | tee -a $STDERRLOG
+  EXIT=${PIPESTATUS[0]}
 
   [ -e core ] && mv core core-`date +%m%d%H%M`
 

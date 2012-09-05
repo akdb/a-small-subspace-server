@@ -11,12 +11,25 @@
 
 /* include for size_t */
 #include <stddef.h>
+#include <time.h>
 
 #ifndef ATTR_FORMAT
 #define ATTR_FORMAT(a,b,c)
 #endif
 #ifndef ATTR_MALLOC
 #define ATTR_MALLOC()
+#endif
+
+#ifdef USING_MSVC
+#include <stdarg.h>
+#define vsnprintf rpl_vsnprintf
+#define snprintf rpl_snprintf
+#define vasprintf rpl_vasprintf
+#define asprintf rpl_asprintf
+int rpl_vsnprintf(char *, size_t, const char *, va_list);
+int rpl_snprintf(char *, size_t, const char *, ...);
+int rpl_vasprintf(char **, const char *, va_list);
+int rpl_asprintf(char **, const char *, ...);
 #endif
 
 /** represents a time, either absolute or relative.
@@ -44,6 +57,9 @@ ticks_t current_millis(void);
 
 /** sleep for this many milliseconds, accurately. */
 void fullsleep(long millis);
+
+/** portable localtime_r wrapper */
+void alocaltime_r(time_t *t, struct tm *_tm);
 
 /** strips a trailing CR or LF off the end of a string. this modifies
  ** the string, and returns it. */
