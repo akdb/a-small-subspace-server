@@ -24,6 +24,9 @@
 #include "util.h"
 #include "defs.h"
 
+#ifdef USING_MSVC
+#include "snprintf.c"
+#endif
 
 
 struct HashEntry
@@ -70,6 +73,18 @@ void fullsleep(long millis)
 #else
 	/* FIXME: can we do this more accurately? */
 	usleep(millis * 1000L);
+#endif
+}
+
+void alocaltime_r(time_t *t, struct tm *_tm)
+{
+#ifndef WIN32
+	localtime_r(t, _tm);
+#else
+	struct tm *now;
+	/* thread-safe in msvcrt (which mingw links with) */
+	now = localtime(t);
+	memcpy(_tm, now, sizeof(struct tm));
 #endif
 }
 
@@ -787,7 +802,7 @@ void HashAddFront(HashTable *h, const char *s, const void *p)
 void HashReplace(HashTable *h, const char *s, const void *p)
 {
 	int slot;
-	HashEntry *l, *last;
+	HashEntry *l;
 
 	slot = hash_string(s) & h->bucketsm1;
 	l = h->lists[slot];
@@ -802,7 +817,6 @@ void HashReplace(HashTable *h, const char *s, const void *p)
 			/* no need to modify h->ents */
 			return;
 		}
-		last = l;
 		l = l->next;
 	}
 
@@ -1082,7 +1096,7 @@ void TrEnum(TreapHead *root, void (*func)(TreapHead *node, void *clos), void *cl
 	{
 		TreapHead *t;
 		TrEnum(root->left, func, clos);
-		/* save right child now because func might free it */
+		/* save right child now because func might free root */
 		t = root->right;
 		func(root, clos);
 		TrEnum(t, func, clos);
@@ -1202,18 +1216,9 @@ void SBPrintf(StringBuffer *sb, const char *fmt, ...)
 	int len, used, needed;
 
 	/* figure out how long the result is */
-#ifdef BROKEN_VSNPRINTF
-	char buf[1024];
-
-	va_start(args, fmt);
-	vsnprintf(buf, 1024, fmt, args);
-	va_end(args);
-	len = strlen(buf);
-#else
 	va_start(args, fmt);
 	len = vsnprintf(NULL, 0, fmt, args);
 	va_end(args);
-#endif
 
 	/* figure out if we need to reallocate */
 	used = sb->end - sb->start;
@@ -1237,13 +1242,10 @@ void SBPrintf(StringBuffer *sb, const char *fmt, ...)
 	}
 
 	/* now print */
-#ifdef BROKEN_VSNPRINTF
-	memcpy(sb->end, buf, len+1);
-#else
 	va_start(args, fmt);
 	vsnprintf(sb->end, len+1, fmt, args);
 	va_end(args);
-#endif
+
 	sb->end += len;
 }
 

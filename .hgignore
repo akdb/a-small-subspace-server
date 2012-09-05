@@ -3,3 +3,5 @@ syntax: regexp
 ^src/contenc
 ^bin
 ^build
+^doc/doxygen
+^windeps
