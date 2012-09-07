@@ -52,7 +52,7 @@ def const_callback(n):
 
 def const_interface(n):
 	const_file.write('PYINTERFACE(%s)\n' % n);
-	
+
 def const_adviser(n):
 	const_file.write('PYADVISER(%s)\n' % n);
 
@@ -457,7 +457,7 @@ def create_c_to_py_func(name, func):
 			else:
 				decls.append('\t%s;' % (typ.buf_decl(vargname)))
 				outformat.append(typ.format_char())
-			informat.append(typ.format_char())			
+			informat.append(typ.format_char())
 			try:
 				inargs.append(typ.parse_converter())
 			except:
@@ -1151,9 +1151,9 @@ def init_pyadv():
 	out.write("""
 /* pyadv declarations */
 
-local void pyadv_generic_dealloc(pyint_generic_adviser_object *self)
+local void pyadv_generic_dealloc(pyadv_generic_adviser_object *self)
 {
-	mm->UnregAdviser(self->adv);/*TODO i -> adv*/
+	mm->UnregAdviser(self->a, ALLARENAS);/*TODO i -> adv*/
 	PyObject_Del(self);
 }
 
@@ -1367,7 +1367,7 @@ local struct %(ifstruct)s %(advisname)s = {
 };
 
 """ % vars()
-		init = "\tHashReplace(pyadv_impl_ints, PYADVPREFIX %(aid)s, &%(advisname)s);\n" % vars()
+		init = "\tHashReplace(pyadv_impl_advs, PYADVPREFIX %(aid)s, &%(advisname)s);\n" % vars()
 		pyadv_init_code.append(init)
 
 		adv_file.write('\n/* implementing adviser %(aid)s in python {{{ */\n' % vars())
@@ -1856,7 +1856,7 @@ for l in lines:
 			const_interface(lastintdef)
 			translate_pyint(lastintdef, lasttypedef, intdirs)
 			intdirs = []
-			
+
 	# advisers
 	m = re_pyadv_advdef.match(l)
 	if m:
@@ -1877,7 +1877,7 @@ for l in lines:
 			const_adviser(lastadvdef)
 			translate_pyadv(lastadvdef, lastadvtypedef, advdirs)
 			advdirs = []
-	
+
 	# types
 	m = re_pytype.match(l)
 	if m:
