@@ -188,11 +188,15 @@ typedef struct GroupedPacket
 
 /* interface: */
 local void SendToOne(Player *, byte *, int, int);
+local void SendToOneWithCallback(Player *, byte *, int, int, RelCallback, void *);
 local void SendToArena(Arena *, Player *, byte *, int, int);
+local void SendToArenaWithCallback(Arena *, Player *, byte *, int, int, RelCallback, void *);
 local void SendToSet(LinkedList *, byte *, int, int);
+local void SendToSetWithCallback(LinkedList *, byte *, int, int, RelCallback, void *);
 local void SendToTarget(const Target *, byte *, int, int);
-local void SendWithCallback(Player *p, byte *data, int length,
-		RelCallback callback, void *clos);
+local void SendToTargetWithCallback(const Target *, byte *, int, int, RelCallback, void *);
+
+/* local void SendWithCallback(Player *p, byte *data, int length,RelCallback callback, void *clos); */
 local int SendSized(Player *p, void *clos, int len,
 		void (*req)(void *clos, int offset, byte *buf, int needed));
 
@@ -325,8 +329,12 @@ local Inet netint =
 {
 	INTERFACE_HEAD_INIT(I_NET, "net-udp")
 
-	SendToOne, SendToArena, SendToSet, SendToTarget,
-	SendWithCallback, SendSized,
+	SendToOne, SendToOneWithCallback,
+	SendToArena, SendToArenaWithCallback,
+	SendToSet, SendToSetWithCallback,
+	SendToTarget, SendToTargetWithCallback,
+
+	SendSized,
 
 	AddPacket, RemovePacket, AddSizedPacket, RemoveSizedPacket,
 
@@ -2509,26 +2517,35 @@ Buffer * BufferPacket(ConnData *conn, byte *data, int len, int flags,
 
 void SendToOne(Player *p, byte *data, int len, int flags)
 {
+	SendToOneWithCallback(p, data, len, flags, NULL, NULL);
+}
+
+void SendToOneWithCallback(Player *p, byte *data, int len, int flags, RelCallback callback, void *clos)
+{
 	ConnData *conn = PPDATA(p, connkey);
 	if (!IS_OURS(p)) return;
 	/* see if we can do it the quick way */
 	if (len <= (MAXPACKET - REL_HEADER))
 	{
 		pthread_mutex_lock(&conn->olmtx);
-		BufferPacket(conn, data, len, flags, NULL, NULL);
+		BufferPacket(conn, data, len, flags, callback, clos);
 		pthread_mutex_unlock(&conn->olmtx);
 	}
 	else
 	{
 		/* slight hack */
 		Link link = { NULL, p };
-		LinkedList lst = { &link, &link };
-		SendToSet(&lst, data, len, flags);
+		LinkedList lst = { &link/*, &link*/ }; // Why were we double-sending packets here?
+		SendToSetWithCallback(&lst, data, len, flags, callback, clos);
 	}
 }
 
-
 void SendToArena(Arena *arena, Player *except, byte *data, int len, int flags)
+{
+	SendToArenaWithCallback(arena, except, data, len, flags, NULL, NULL);
+}
+
+void SendToArenaWithCallback(Arena *arena, Player *except, byte *data, int len, int flags, RelCallback callback, void *clos)
 {
 	LinkedList set = LL_INITIALIZER;
 	Link *link;
@@ -2542,38 +2559,56 @@ void SendToArena(Arena *arena, Player *except, byte *data, int len, int flags)
 		    IS_OURS(p))
 			LLAdd(&set, p);
 	pd->Unlock();
-	SendToSet(&set, data, len, flags);
+	SendToSetWithCallback(&set, data, len, flags, callback, clos);
 	LLEmpty(&set);
 }
-
 
 void SendToTarget(const Target *target, byte *data, int len, int flags)
 {
+	SendToTargetWithCallback(target, data, len, flags, NULL, NULL);
+}
+
+void SendToTargetWithCallback(const Target *target, byte *data, int len, int flags, RelCallback callback, void *clos)
+{
 	LinkedList set = LL_INITIALIZER;
 	pd->TargetToSet(target, &set);
-	SendToSet(&set, data, len, flags);
+	SendToSetWithCallback(&set, data, len, flags, callback, clos);
 	LLEmpty(&set);
 }
 
-
 void SendToSet(LinkedList *set, byte *data, int len, int flags)
+{
+	SendToSetWithCallback(set, data, len, flags, NULL, NULL);
+}
+
+void SendToSetWithCallback(LinkedList *set, byte *data, int len, int flags, RelCallback callback, void *clos)
 {
 	if (len > (MAXPACKET - REL_HEADER))
 	{
 		/* use 00 08/9 packets */
 		byte buf[CHUNK_SIZE + 2], *dp = data;
 
+		/*
+			We need to send everything reliably to ensure order -- not just the last packet of the
+			transfer.
+		*/
+		flags |= NET_RELIABLE;
+
 		buf[0] = 0x00; buf[1] = 0x08;
 		while (len > CHUNK_SIZE)
 		{
 			memcpy(buf+2, dp, CHUNK_SIZE);
-			SendToSet(set, buf, CHUNK_SIZE + 2, flags);
+			/*
+				The callback should only be called when the whole thing is received. As this is only one
+				chunk of the packet, we send it without the callback.
+			*/
+			SendToSetWithCallback(set, buf, CHUNK_SIZE + 2, flags, NULL, NULL);
 			dp += CHUNK_SIZE;
 			len -= CHUNK_SIZE;
 		}
 		buf[1] = 0x09;
 		memcpy(buf+2, dp, len);
-		SendToSet(set, buf, len+2, flags | NET_RELIABLE);
+		SendToSetWithCallback(set, buf, len+2, flags, callback, clos);
 	}
 	else
 	{
@@ -2584,28 +2619,10 @@ void SendToSet(LinkedList *set, byte *data, int len, int flags)
 			ConnData *conn = PPDATA(p, connkey);
 			if (!IS_OURS(p)) continue;
 			pthread_mutex_lock(&conn->olmtx);
-			BufferPacket(conn, data, len, flags, NULL, NULL);
+			BufferPacket(conn, data, len, flags, callback, clos);
 			pthread_mutex_unlock(&conn->olmtx);
 		}
 	}
-}
-
-
-void SendWithCallback(
-		Player *p,
-		byte *data,
-		int len,
-		RelCallback callback,
-		void *clos)
-{
-	ConnData *conn = PPDATA(p, connkey);
-	/* we can't handle big packets here */
-	assert(len <= (MAXPACKET - REL_HEADER));
-	if (!IS_OURS(p)) return;
-
-	pthread_mutex_lock(&conn->olmtx);
-	BufferPacket(conn, data, len, NET_RELIABLE, callback, clos);
-	pthread_mutex_unlock(&conn->olmtx);
 }
 
 

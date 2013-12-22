@@ -179,7 +179,7 @@ local void load_settings(adata *ad, ConfigHandle conf)
 local override_key_t GetOverrideKey(const char *section, const char *key)
 {
 #define MAKE_UNSIGNED_KEY(field, len) ((offsetof(struct ClientSettings, field)) << 3 | ((len) << 16))
-#define MAKE_SIGNED_KEY(field, len) (MAKE_UNSIGNED_KEY(field, len) | 0x80000000u) 
+#define MAKE_SIGNED_KEY(field, len) (MAKE_UNSIGNED_KEY(field, len) | 0x80000000u)
 #define MAKE_BKEY(field, off, len) ((((offsetof(struct ClientSettings, field)) << 3) + (off)) | ((len) << 16))
 	char fullkey[MAXSECTIONLEN+MAXKEYLEN];
 	int i, j;
@@ -482,13 +482,13 @@ local int GetArenaValue(Arena *arena, override_key_t key)
 {
 	int value;
 	adata *ad = P_ARENA_DATA(arena, adkey);
-	
+
 	LOCK();
-	
+
 	value = get_cs_value(&ad->cs, key);
-	
+
 	UNLOCK();
-	
+
 	return value;
 }
 
@@ -544,7 +544,7 @@ local void do_mask(
 
 
 /* call with lock held */
-local void send_one_settings(Player *p, adata *ad)
+local void send_one_settings(Player *p, adata *ad, RelCallback callback, void *clos)
 {
 	pdata *data = PPDATA(p, pdkey);
 	if (!data->cs)
@@ -553,8 +553,9 @@ local void send_one_settings(Player *p, adata *ad)
 	}
 	do_mask(data->cs, &ad->cs, &ad->od, data->od);
 	if (data->cs->bit_set.type == S2C_SETTINGS)
-		net->SendToOne(p, (byte*)data->cs, sizeof(struct ClientSettings), NET_RELIABLE);
+		net->SendToOneWithCallback(p, (byte*)data->cs, sizeof(struct ClientSettings), NET_RELIABLE, callback, clos);
 }
+
 
 
 local void aaction(Arena *arena, int action)
@@ -585,7 +586,7 @@ local void aaction(Arena *arena, int action)
 			pd->Lock();
 			FOR_EACH_PLAYER(p)
 				if (p->arena == arena && p->status == S_PLAYING)
-					send_one_settings(p, ad);
+					send_one_settings(p, ad, NULL, NULL);
 			pd->Unlock();
 		}
 	}
@@ -618,7 +619,18 @@ local void SendClientSettings(Player *p)
 	if (!p->arena)
 		return;
 	LOCK();
-	send_one_settings(p, ad);
+	send_one_settings(p, ad, NULL, NULL);
+	UNLOCK();
+}
+
+
+local void SendClientSettingsWithCallback(Player *p, RelCallback callback, void *clos)
+{
+	adata *ad = P_ARENA_DATA(p->arena, adkey);
+	if (!p->arena)
+		return;
+	LOCK();
+	send_one_settings(p, ad, callback, clos);
 	UNLOCK();
 }
 
@@ -680,7 +692,7 @@ local int GetRandomPrize(Arena *arena)
 local Iclientset csint =
 {
 	INTERFACE_HEAD_INIT(I_CLIENTSET, "clientset")
-	SendClientSettings, GetChecksum, GetRandomPrize,
+	SendClientSettings, SendClientSettingsWithCallback, GetChecksum, GetRandomPrize,
 	GetOverrideKey,
 	ArenaOverride, ArenaUnoverride, GetArenaOverride, GetArenaValue,
 	PlayerOverride, PlayerUnoverride, GetPlayerOverride, GetPlayerValue,

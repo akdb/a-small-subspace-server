@@ -24,6 +24,8 @@ typedef struct Iclientset
 	void (*SendClientSettings)(Player *p);
 	/* pyint: player -> void */
 
+	void (*SendClientSettingsWithCallback)(Player *p, RelCallback callback, void *clos);
+
 	u32 (*GetChecksum)(Player *p, u32 key);
 
 	int (*GetRandomPrize)(Arena *arena);
@@ -37,7 +39,7 @@ typedef struct Iclientset
 	/* pyint: arena, int, int -> void */
 	void (*ArenaUnoverride)(Arena *arena, override_key_t key);
 	/* pyint: arena, int -> void */
-	
+
 	/* The return value for these 2 is a boolean, 0 = failure */
 	int (*GetArenaOverride)(Arena *arena, override_key_t key, int *value);
 	/* pyint: arena, int, int out -> int */
