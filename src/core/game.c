@@ -400,7 +400,7 @@ local void handle_ppk(Player *p, struct C2SPosition *pos, int len, int isfake)
 			if (ppkadviser->EditPPK)
 			{
 				ppkadviser->EditPPK(p, pos);
-				
+
 				// allow advisers to drop the position packet
 				if (pos->x == -1 && pos->y == -1)
 				{
@@ -546,7 +546,7 @@ local void handle_ppk(Player *p, struct C2SPosition *pos, int len, int isfake)
 						modified = 0;
 					}
 					drop = 0;
-					
+
 					/* consult the ppk advisers to allow other modules to edit the
 					 * packet going to player i */
 					FOR_EACH(&advisers, ppkadviser, alink)
@@ -554,9 +554,9 @@ local void handle_ppk(Player *p, struct C2SPosition *pos, int len, int isfake)
 						if (ppkadviser->EditIndividualPPK)
 						{
 							modified |= ppkadviser->EditIndividualPPK(p, i, &copy, &extralen);
-							
+
 							// allow advisers to drop the packet
-							if (copy.x == -1 && copy.y == -1) 
+							if (copy.x == -1 && copy.y == -1)
 							{
 								drop = 1;
 								break;
@@ -593,15 +593,15 @@ local void handle_ppk(Player *p, struct C2SPosition *pos, int len, int isfake)
 								/* move this field from the main packet to the extra data,
 								 * in case they don't match. */
 								wpn.extra.energy = copy.energy;
-	
+
 								wpndirty = modified;
-	
+
 								DoWeaponChecksum(&wpn);
 							}
-	
+
 							if (wpn.weapon.type)
 								idata->wpnsent++;
-	
+
 							net->SendToOne(i, (byte*)&wpn, length, nflags);
 						}
 						else
@@ -624,10 +624,10 @@ local void handle_ppk(Player *p, struct C2SPosition *pos, int len, int isfake)
 								/* move this field from the main packet to the extra data,
 								 * in case they don't match. */
 								sendpos.extra.energy = copy.energy;
-	
+
 								posdirty = modified;
 							}
-	
+
 							net->SendToOne(i, (byte*)&sendpos, length, nflags);
 						}
 					}
@@ -968,7 +968,7 @@ local void SetShipAndFreq(Player *p, int ship, int freq)
 
 	/* send it to him, with a callback */
 	if (IS_STANDARD(p))
-		net->SendWithCallback(p, (byte*)&to, 6, reset_during_change, NULL);
+		net->SendToOneWithCallback(p, (byte*)&to, 6, NET_RELIABLE, reset_during_change, NULL);
 	/* sent it to everyone else */
 	net->SendToArena(arena, p, (byte*)&to, 6, NET_RELIABLE);
 	if (chatnet)
@@ -1107,7 +1107,7 @@ local void SetFreq(Player *p, int freq)
 
 	/* him, with callback */
 	if (IS_STANDARD(p))
-		net->SendWithCallback(p, (byte*)&to, 6, reset_during_change, NULL);
+		net->SendToOneWithCallback(p, (byte*)&to, 6, NET_RELIABLE, reset_during_change, NULL);
 	/* everyone else */
 	net->SendToArena(arena, p, (byte*)&to, 6, NET_RELIABLE);
 	if (chatnet)
@@ -1244,20 +1244,20 @@ local void PDie(Player *p, byte *pkt, int len)
 		if (killAdviser->EditDeath)
 		{
 			killAdviser->EditDeath(arena, &killer, &p, &bty);
-			
+
 			if (!p || !killer) // The advisor wants to drop the kill packet
 			{
 				mm->ReleaseAdviserList(&advisers);
 				return;
 			}
-			
+
 			if (p->status != S_PLAYING || p->arena != arena)
 			{
 				lm->LogP(L_ERROR, "game", p, "An A_KILL adviser set killed to a bad player");
 				mm->ReleaseAdviserList(&advisers);
 				return;
 			}
-			
+
 			if (killer->status != S_PLAYING || killer->arena != arena)
 			{
 				lm->LogP(L_ERROR, "game", p, "An A_KILL adviser set killer to a bad player");
@@ -1295,7 +1295,7 @@ local void PDie(Player *p, byte *pkt, int len)
 			pts += killAdviser->KillPoints(arena, killer, p, bty, flagcount);
 		}
 	}
-	
+
 	/* allow a module to modify the green sent in the packet */
 	killgreen = mm->GetInterface(I_KILL_GREEN, arena);
 	if (killgreen)
@@ -1303,7 +1303,7 @@ local void PDie(Player *p, byte *pkt, int len)
 		green = killgreen->KillGreen(arena, killer, p, bty, flagcount, pts, green);
 	}
 	mm->ReleaseInterface(killgreen);
-	
+
 	/* record the kill points on our side */
 	if (pts)
 	{
@@ -1584,7 +1584,7 @@ local void ArenaAction(Arena *arena, int action)
 
 		/* cfghelp: Misc:NoSafeAntiwarp, arena, int, def: 0
 		 * Disables antiwarp on players in safe zones. */
-		ad->nosafeanti = 
+		ad->nosafeanti =
 			cfg->GetInt(arena->cfg, "Misc", "NoSafeAntiwarp", 0);
 
 		/* cfghelp: Prize:DontShareThor, arena, bool, def: 0
@@ -1781,7 +1781,7 @@ local PlayerPersistentData persdata =
 	get_data, set_data, clear_data
 };
 
-local Appk _region_ppk_adv = 
+local Appk _region_ppk_adv =
 {
 	ADVISER_HEAD_INIT(A_PPK)
 	NULL, RegionPacketEditor

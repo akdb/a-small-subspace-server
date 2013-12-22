@@ -88,19 +88,33 @@ struct net_client_stats
 #include "encrypt.h"
 
 
-#define I_NET "net-10"
+#define I_NET "net-11"
 
 typedef struct Inet
 {
 	INTERFACE_HEAD_DECL
 	/* pyint: use */
 
+	/**
+	 * Impl Note:
+	 * The callback functionality provided by the *WithCallback functions only operates if the packet
+	 * is sent reliably. If a callback is provided, but the NET_RELIABLE flag is absent, the callback
+	 * will be silently ignored.
+	 */
+
 	void (*SendToOne)(Player *p, byte *data, int length, int flags);
+	void (*SendToOneWithCallback)(Player *p, byte *data, int length, int flags, RelCallback callback, void *clos);
+
 	void (*SendToArena)(Arena *a, Player *except, byte *data, int length, int flags);
+	void (*SendToArenaWithCallback)(Arena *a, Player *except, byte *data, int length, int flags, RelCallback callback, void *clos);
+
 	void (*SendToSet)(LinkedList *set, byte *data, int length, int flags);
+	void (*SendToSetWithCallback)(LinkedList *set, byte *data, int length, int flags, RelCallback callback, void *clos);
+
 	void (*SendToTarget)(const Target *target, byte *data, int length, int flags);
-	void (*SendWithCallback)(Player *p, byte *data, int length,
-			RelCallback callback, void *clos);
+	void (*SendToTargetWithCallback)(const Target *target, byte *data, int length, int flags, RelCallback callback, void *clos);
+
+
 	int (*SendSized)(Player *p, void *clos, int len,
 			void (*request_data)(void *clos, int offset, byte *buf, int needed));
 
