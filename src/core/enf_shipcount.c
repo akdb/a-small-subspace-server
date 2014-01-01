@@ -9,7 +9,56 @@ local Iconfig *cfg;
 local Ilogman *lm;
 local Iplayerdata *pd;
 
-local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf, int buf_len)
+
+local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
+{
+	Link *link;
+	Player *x;
+	int allow = 1;
+
+	if (new_ship >= 0 && new_ship < SHIP_SPEC)
+	{
+		int limit = cfg->GetInt(p->arena->cfg, cfg->SHIP_NAMES[new_ship], "LimitPerTeam", -1);
+
+		if (!limit)
+		{
+			allow = 0;
+
+			if (err_buf)
+				snprintf(err_buf, buf_len, "No %ss are allowed in this arena.", cfg->SHIP_NAMES[new_ship]);
+		}
+		else if (limit > 0)
+		{
+			int count = 0;
+			// Count the number of ships already on this their team.
+			pd->Lock();
+			FOR_EACH_PLAYER_IN_ARENA(x, p->arena)
+			{
+				if (x->p_freq != p->p_freq)
+					continue;
+				if (x->p_ship == SHIP_SPEC)
+					continue;
+				if (x == p)
+					continue;
+
+				++count;
+			}
+			pd->Unlock();
+
+			if (count >= limit)
+			{
+				allow = 0;
+
+				if (err_buf)
+					snprintf(err_buf, buf_len, "There are already the maximum number of %s pilots on your team.", cfg->SHIP_NAMES[new_ship]);
+			}
+		}
+	}
+
+	return allow;
+}
+
+local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_len)
 {
 	int i;
 	Link *link;
@@ -47,16 +96,6 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 		{
 			mask |= (1 << i);
 		}
-		else
-		{
-			if (ship == i && err_buf)
-			{
-				if (limit > 0)
-					snprintf(err_buf, buf_len, "There are already the maximum number of ship-%i pilots on your team.", i+1);
-				else
-					snprintf(err_buf, buf_len, "No ship-%is are allowed in this arena.", i+1);
-			}
-		}
 	}
 
 	return mask;
@@ -65,7 +104,11 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 local Aenforcer enforceradv =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
-	GetAllowableShips, NULL
+  NULL,
+  NULL,
+  CanChangeToShip,
+  NULL,
+	GetAllowableShips
 };
 
 EXPORT const char info_enf_shipcount[] = CORE_MOD_INFO("enf_shipcount");

@@ -5,7 +5,7 @@
 
 #include "asss.h"
 
-local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf, int buf_len)
+local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_len)
 {
 	if (err_buf)
 	{
@@ -18,7 +18,11 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 local Aenforcer my_adv =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
-	GetAllowableShips, NULL
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+	GetAllowableShips
 };
 
 EXPORT const char info_enf_lockspec[] = CORE_MOD_INFO("enf_lockspec");

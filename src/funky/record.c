@@ -453,7 +453,7 @@ local int start_recording(Arena *a, const char *file, const char *recorder, cons
 	int cmtlen = comments ? strlen(comments) + 1 : 0;
 
 	char fullpath[256];
-	
+
 	mkdir("recordings", 0755);
 
 	/* append file to fullpath if the base is not recordings/
@@ -625,7 +625,7 @@ local void get_watching_set(LinkedList *set, Arena *arena)
 
 /* locking humans to spec */
 
-local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf, int buf_len)
+local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_len)
 {
 	if (err_buf)
 		snprintf(err_buf, buf_len, "Ships are disabled for playback.");
@@ -642,7 +642,11 @@ local int CanChangeFreq(Player *p, int new_freq, char *err_buf, int buf_len)
 local struct Aenforcer lockspec =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
-	GetAllowableShips, CanChangeFreq
+	NULL,
+	NULL,
+	NULL,
+	CanChangeFreq,
+	GetAllowableShips
 };
 
 
@@ -1064,7 +1068,7 @@ local int start_playback(Arena *a, const char *file)
 	int ok = FALSE, fd;
 
 	char fullpath[256];
-	
+
 	/* append file to fullpath if the base is not recordings/
 		else set fullpath to file (for backwards compatibility with ?rec play recordings/blah ) */
 	if (!strncmp("recordings/", file, sizeof("recordings/")-1))
