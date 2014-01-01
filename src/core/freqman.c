@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-typedef struct Freq 
+typedef struct Freq
 {
 	LinkedList players;
 	int freqnum;
@@ -31,10 +31,13 @@ local void freq_free_enum(const void *_freq);
 local void update_freqs(Arena *arena, Player *p, int newFreqnum, int oldFreqnum);
 local void add_player_to_freq(Player *p, Freq *freq);
 local void remove_player_from_freq(Arena *arena, Player *p, Freq *freq);
-local shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int ship, int freq, char *err_buf, int buf_len);
-local int enforcers_can_change_to_freq(Arena *arena, Player *p, int new_freq, char *err_buf, int buf_len);
-local int enforcers_can_enter_game(Arena *arena, Player *p, char *err_buf, int buf_len);
+
 local int enforcers_is_unlocked(Arena *arena, Player *p, char *err_buf, int buf_len);
+local int enforcers_can_enter_game(Arena *arena, Player *p, char *err_buf, int buf_len);
+local int enforcers_can_change_to_ship(Arena *arena, Player *p, int new_ship, char *err_buf, int buf_len);
+local int enforcers_can_change_to_freq(Arena *arena, Player *p, int new_freq, char *err_buf, int buf_len);
+local shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int freq, char *err_buf, int buf_len);
+
 local int get_player_metric(Player *p, Ibalancer *balancer);
 local int get_freq_metric(Freq *freq, Ibalancer *balancer);
 local int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len);
@@ -64,6 +67,7 @@ local Ifreqman freqman_interface =
 	ShipChange,
 	FreqChange,
 };
+
 local Ibalancer default_balancer_interface =
 {
 	INTERFACE_HEAD_INIT(I_BALANCER, "default-balancer")
@@ -71,17 +75,20 @@ local Ibalancer default_balancer_interface =
 	default_GetMaxMetric,
 	default_GetMaximumDifference,
 };
+
 local Aenforcer aenforcer_adviser =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
 	NULL,
-	CanChangeToFreq,
 	CanEnterGame,
+	NULL,
+	CanChangeToFreq,
 	NULL,
 };
 
+
 local int arenaDataKey = -1;
-typedef struct arenadata 
+typedef struct arenadata
 {
 	LinkedList freqs;
 	int cfg_numberOfFrequencies;
@@ -104,7 +111,7 @@ typedef struct arenadata
 } arenadata;
 
 local int playerDataKey = -1;
-typedef struct playerdata 
+typedef struct playerdata
 {
 	Freq *freq;
 } playerdata;
@@ -124,10 +131,10 @@ Freq * create_freq(Arena *arena, int freqnum)
 	/* call with lock held */
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
 	Freq *freq = amalloc(sizeof(*freq));
-	
+
 	freq->freqnum = freqnum;
 	LLInit(&freq->players);
-	
+
 	refresh_freq(arena, freq);
 	LLAdd(&ad->freqs, freq);
 
@@ -140,7 +147,7 @@ Freq * get_freq(Arena *arena, int freqnum)
 	Link *link;
 	Freq *f, *result = NULL;
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
-	
+
 	FOR_EACH(&ad->freqs, f, link)
 	{
 		if (f->freqnum == freqnum)
@@ -160,7 +167,7 @@ void prune_freqs(Arena *arena)
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
 
 	pthread_mutex_lock(&fm_mutex);
-	
+
 	FOR_EACH(&ad->freqs, freq, link)
 	{
 		if (freq->freqnum >= ad->cfg_requiredTeams)
@@ -183,7 +190,7 @@ void prune_freqs(Arena *arena)
 		if (!freq)
 			create_freq(arena, i);
 	}
-	
+
 	pthread_mutex_unlock(&fm_mutex);
 }
 
@@ -201,13 +208,13 @@ void update_freqs(Arena *arena, Player *p, int newFreqnum, int oldFreqnum)
 
 	if (newFreqnum == oldFreqnum)
 		return;
-		
+
 	/* we care not for these little hacks which cause misery to no end with
 	 * lack of being treated like any other player. use a custom balancer if
 	 * you need to account for fake players at this time. */
 	if (p->type == T_FAKE)
 		return;
-		
+
 	pd->Lock();
 	pthread_mutex_lock(&fm_mutex);
 	/* we don't need to bother storing who's on the spectator frequency, since
@@ -218,7 +225,7 @@ void update_freqs(Arena *arena, Player *p, int newFreqnum, int oldFreqnum)
 		assert(freq == pdat->freq);
 		remove_player_from_freq(arena, p, freq);
 	}
-	
+
 	if (newFreqnum != arena->specfreq)
 	{
 		freq = get_freq(arena, newFreqnum);
@@ -245,7 +252,7 @@ void remove_player_from_freq(Arena *arena, Player *p, Freq *freq)
 	/* call with lock held inside playerdata lock */
 	LLRemove(&freq->players, p);
 	pdat->freq = NULL;
-	
+
 	/* possibly disband the freq altogether, if it's not required */
 	if (!freq->is_required && LLCount(&freq->players) == 0)
 	{
@@ -255,7 +262,7 @@ void remove_player_from_freq(Arena *arena, Player *p, Freq *freq)
 	}
 }
 
-shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int ship, int freq, char *err_buf, int buf_len)
+shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int freq, char *err_buf, int buf_len)
 {
 	/* checks the enforcers for allowable ships */
 	LinkedList advisers;
@@ -267,7 +274,7 @@ shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int ship, int 
 	{
 		return SHIPMASK_NONE;
 	}
-	
+
 	LLInit(&advisers);
 
 	mm->GetAdviserList(A_ENFORCER, arena, &advisers);
@@ -276,7 +283,7 @@ shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int ship, int 
 	{
 		if (adviser->GetAllowableShips)
 		{
-			mask &= adviser->GetAllowableShips(p, ship, freq, err_buf, buf_len);
+			mask &= adviser->GetAllowableShips(p, freq, err_buf, buf_len);
 
 			if (mask == 0)
 			{
@@ -289,6 +296,35 @@ shipmask_t enforcers_get_allowable_ships(Arena *arena, Player *p, int ship, int 
 	mm->ReleaseAdviserList(&advisers);
 
 	return mask;
+}
+
+int enforcers_can_change_to_ship(Arena *arena, Player *p, int new_ship, char *err_buf, int buf_len)
+{
+	/* checks the enforcers for a ship change */
+	Aenforcer *adviser;
+	LinkedList advisers;
+	Link *link;
+	int can_change = 1;
+
+	LLInit(&advisers);
+
+	mm->GetAdviserList(A_ENFORCER, arena, &advisers);
+
+	FOR_EACH(&advisers, adviser, link)
+	{
+		if (adviser->CanChangeToShip)
+		{
+			if (!adviser->CanChangeToShip(p, new_ship, err_buf, buf_len))
+			{
+				can_change = 0;
+				break;
+			}
+		}
+	}
+
+	mm->ReleaseAdviserList(&advisers);
+
+	return can_change;
 }
 
 int enforcers_can_change_to_freq(Arena *arena, Player *p, int new_freq, char *err_buf, int buf_len)
@@ -402,7 +438,7 @@ int get_freq_metric(Freq *freq, Ibalancer *balancer)
 	{
 		return 0;
 	}
-	
+
 	pd->Lock();
 	pthread_mutex_lock(&fm_mutex);
 	FOR_EACH(&freq->players, p, link)
@@ -411,7 +447,7 @@ int get_freq_metric(Freq *freq, Ibalancer *balancer)
 	}
 	pthread_mutex_unlock(&fm_mutex);
 	pd->Unlock();
-	
+
 	return result;
 }
 
@@ -427,7 +463,7 @@ int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len)
 	int playerMetric = get_player_metric(p, balancer);
 	Freq *freq;
 	int freqMetric;
-		
+
 	for (i = 0; i < max; ++i)
 	{
 		if (!enforcers_can_change_to_freq(arena, p, i, err_buf, buf_len))
@@ -452,7 +488,7 @@ int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len)
 			}
 		}
 	}
-	
+
 	if (result == arena->specfreq) /* if we couldn't find a freq yet.. */
 	{
 		/* note: i is desiredTeams + 1 right now - this time we'll do things
@@ -467,7 +503,7 @@ int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len)
 					result = i;
 					break;
 				}
-				
+
 				freqMetric = get_freq_metric(freq, balancer);
 				if (freqMetric <= balancer->GetMaxMetric(arena, i) - playerMetric)
 				{
@@ -485,7 +521,7 @@ int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len)
 			++i;
 		}
 	}
-	
+
 	if (result != arena->specfreq)
 	{
 		/* check one final time if we have a result. if so, clear any error
@@ -493,7 +529,7 @@ int find_entry_freq(Arena *arena, Player *p, char *err_buf, int buf_len)
 		if (err_buf)
 			strcpy(err_buf, "");
 	}
-	
+
 	return result;
 }
 
@@ -503,15 +539,15 @@ void Initial(Player *p, int *ship, int *freq)
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
 	int workingShip = *ship;
 	int workingFreqnum = *freq;
-	
+
 	if (!arena)
 		return;
-		
+
 	if (ad->cfg_alwaysStartInSpec || enforcers_can_enter_game(arena, p, NULL, 0))
 	{
 		workingShip = SHIP_SPEC;
 	}
-	
+
 	if (workingShip == SHIP_SPEC)
 	{
 		workingFreqnum = arena->specfreq;
@@ -529,7 +565,7 @@ void Initial(Player *p, int *ship, int *freq)
 		}
 		else
 		{
-			mask = enforcers_get_allowable_ships(arena, p, workingShip, workingFreqnum, NULL, 0);
+			mask = enforcers_get_allowable_ships(arena, p, workingFreqnum, NULL, 0);
 			if ((mask & (1 << workingShip)) == 0)
 			{
 				int i;
@@ -553,7 +589,7 @@ void Initial(Player *p, int *ship, int *freq)
 			}
 		}
 	}
-	
+
 	*ship = workingShip;
 	*freq = workingFreqnum;
 }
@@ -563,27 +599,27 @@ void ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
 	Arena *arena = p->arena;
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
 	int workingFreqnum = p->p_freq;
-	
+
 	/* setup the err_buf so we know if an enforcer wrote a message */
 	if (err_buf && buf_len)
 	{
 		err_buf[0] = '\0';
 	}
-	
+
 	if (workingShip >= SHIP_SPEC)
 	{
 		/* always allow switching to spec */
 		game->SetShipAndFreq(p, SHIP_SPEC, arena->specfreq);
 		return;
 	}
-	
+
 	/* see if the person is allowed to change their ship/freq. */
 	if (!enforcers_is_unlocked(arena, p, err_buf, buf_len))
 	{
 		/* passes along message if any. */
 		return;
 	}
-	
+
 	if (p->p_ship == SHIP_SPEC)
 	{
 		/* since they're coming out of spec, check to see if they can enter the
@@ -593,7 +629,7 @@ void ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
 			/* passes along message if any. */
 			return;
 		}
-	
+
 		if (workingFreqnum == arena->specfreq)
 		{
 			/* they're coming from specfreq, give them a new freq */
@@ -620,39 +656,11 @@ void ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
 			return;
 		}
 	}
-	
-	/* make sure their ship is legal */
-	if (workingShip != SHIP_SPEC)
+
+	if (!enforcers_can_change_to_ship(arena, p, workingShip, err_buf, buf_len))
 	{
-		shipmask_t mask = enforcers_get_allowable_ships(arena, p, workingShip, workingFreqnum, err_buf, buf_len);
-		if ((mask & (1 << workingShip)) == 0)
-		{
-			if (mask & (1 << p->p_ship))
-			{
-				/* default to the old ship */
-				workingShip = p->p_ship;
-			}
-			else
-			{
-				int i;
-				workingShip = SHIP_SPEC;
-				for (i = SHIP_WARBIRD; i <= SHIP_SHARK; i++)
-				{
-					if (mask & (1 << i))
-					{
-						workingShip = i;
-						break;
-					}
-				}
-			}
-		}
-	}
-	
-	if (workingShip == SHIP_SPEC && ad->cfg_disallowTeamSpectators)
-	{
-		if (err_buf && err_buf[0] == '\0')
-			snprintf(err_buf, buf_len, "You may only spectate on the spectator frequency.");
-		workingFreqnum = arena->specfreq;
+		/* passes along message if any */
+		return;
 	}
 
 	game->SetShipAndFreq(p, workingShip, workingFreqnum);
@@ -677,13 +685,13 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 		game->SetFreq(p, arena->specfreq);
 		return;
 	}
-	
+
 	/* see if the person is allowed to change their ship/freq. */
 	if (!enforcers_is_unlocked(arena, p, err_buf, buf_len))
 	{
 		/* passes along message if any. */
 		return;
-	}		
+	}
 
 	if (requestedFreqnum < 0 || requestedFreqnum >= ad->cfg_numberOfFrequencies)
 	{
@@ -701,12 +709,12 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 
 		return;
 	}
-	
+
 	/* at this point, we have a valid freq, now we just need to make sure that
 	 * the user can change to it. first, make sure just changing to the freq is
 	 * allowed. second, make sure that if spectators are only allowed on the
 	 * spec freq, that they have a ship they can use on that freq. */
-	
+
 	if (!enforcers_can_change_to_freq(arena, p, requestedFreqnum, err_buf, buf_len))
 	{
 		/* passes along message if any */
@@ -724,8 +732,8 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 			/* passes along message if any. */
 			return;
 		}
-		
-		mask = enforcers_get_allowable_ships(arena, p, SHIP_SPEC, requestedFreqnum, err_buf, buf_len);
+
+		mask = enforcers_get_allowable_ships(arena, p, requestedFreqnum, err_buf, buf_len);
 		for (i = SHIP_WARBIRD; i <= SHIP_SHARK; ++i)
 		{
 			if (mask & (1 << i))
@@ -740,7 +748,7 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 		/* since they're already in the game, we just need to make sure their
 		 * ship is legal on their new freq, or find them a new ship if it's
 		 * not */
-		shipmask_t mask = enforcers_get_allowable_ships(arena, p, workingShip, requestedFreqnum, err_buf, buf_len);
+		shipmask_t mask = enforcers_get_allowable_ships(arena, p, requestedFreqnum, err_buf, buf_len);
 		if (!(mask & (1 << workingShip)))
 		{
 			/* if their ship is not allowed, we must find them a new ship. */
@@ -756,7 +764,7 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 			}
 		}
 	}
-	
+
 	if (ad->cfg_disallowTeamSpectators && workingShip == SHIP_SPEC && err_buf)
 	{
 		/* at this point, the person should have a ship other than ship spec
@@ -766,7 +774,7 @@ void FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 		 * weird. */
 		if (err_buf)
 		{
-			if (*err_buf != '\0')			
+			if (*err_buf != '\0')
 			{
 				/* if we have an error, let's append it. */
 				char *tempBuffer = astrdup(err_buf);
@@ -802,10 +810,10 @@ int default_GetMaxMetric(Arena *arena, int freqnum)
 {
 	int result = 0;
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
-	
+
 	if (ad->cfg_defaultBalancer_forceEvenTeams)
 		result = max_freq_size(arena, freqnum);
-	
+
 	if (result <= 0)
 		result = 1;
 	return result;
@@ -871,7 +879,7 @@ void cbPlayerAction(Player *p, int action, Arena *arena)
 void cbArenaAction(Arena *arena, int action)
 {
 	arenadata *ad = arena ? P_ARENA_DATA(arena, arenaDataKey) : NULL;
-	
+
 	if (action == AA_CREATE)
 	{
 		LLInit(&ad->freqs);
@@ -920,7 +928,7 @@ int player_meets_resolution_requirements(Player *p, char *err_buf, int buf_len)
 int player_under_lag_limits(Player *p, char *err_buf, int buf_len)
 {
 	int result = TRUE;
-	
+
 	/* this flag is kind of silly, an interface to a lag handler would be much
 	 * cooler, or just having a lag module use its own enforcer. */
 	if (p->flags.no_ship)
@@ -941,7 +949,7 @@ int max_freq_size(Arena *arena, int freqnum)
 		result = ad->cfg_maxPrivateFreqSize;
 	else
 		result = ad->cfg_maxPublicFreqSize;
-	
+
 	return result;
 }
 
@@ -977,7 +985,7 @@ int freq_not_full(Arena *arena, int freqnum, char *err_buf, int buf_len)
 			}
 		}
 		pd->Unlock();
-		
+
 		if (count >= max)
 		{
 			result = FALSE;
@@ -985,7 +993,7 @@ int freq_not_full(Arena *arena, int freqnum, char *err_buf, int buf_len)
 				snprintf(err_buf, buf_len, "Frequency %d is full.", freqnum);
 		}
 	}
-	
+
 	return result;
 }
 
@@ -1009,7 +1017,7 @@ int arena_not_full(Arena *arena, char *err_buf, int buf_len)
 		}
 	}
 	pd->Unlock();
-	
+
 	if (count > ad->cfg_maxPlaying)
 	{
 		if (err_buf)
@@ -1025,28 +1033,28 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 	int result, fastReturn;
 	Arena *arena;
 	int playerMetric;
-	
+
 	int oldFreqnum;
 	Freq *oldFreq;
 	Freq *newFreq;
 	int oldFreqMetric, oldFreqMetricPotential;
 	int newFreqMetric, newFreqMetricPotential;
 	int maxMetric;
-	
+
 	arenadata *ad = p->arena ? P_ARENA_DATA(p->arena, arenaDataKey) : NULL;
-	
-	arena = p->arena;	
+
+	arena = p->arena;
 	oldFreqnum = p->p_freq;
-	
+
 	pthread_mutex_lock(&fm_mutex);
-	
+
 	oldFreq = get_freq(arena, oldFreqnum);
 	newFreq = get_freq(arena, newFreqnum);
 
 	/* a few short circuting checks here, we may not actually need to check
 	 * the balancer itself. */
 	fastReturn = FALSE;
-	
+
 	if (newFreq && newFreq->is_required && LLIsEmpty(&newFreq->players))
 	{
 		/* they're changing to an empty required team: always allow */
@@ -1060,7 +1068,7 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 		 * it. */
 		if (err_buf)
 			snprintf(err_buf, buf_len, "Your frequency requires at least one player.");
-		
+
 		result = FALSE;
 		fastReturn = TRUE;
 	}
@@ -1084,19 +1092,19 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 			}
 		}
 	}
-	
+
 	if (!fastReturn)
 	{
 		Ibalancer *balancer = mm->GetInterface(I_BALANCER, arena);
-		
+
 		oldFreqMetric = get_freq_metric(oldFreq, balancer);
 		newFreqMetric = get_freq_metric(newFreq, balancer);
-	
+
 		playerMetric = get_player_metric(p, balancer);
 		oldFreqMetricPotential = oldFreqMetric - playerMetric;
 		newFreqMetricPotential = newFreqMetric + playerMetric;
 		result = TRUE;
-	
+
 		maxMetric = balancer->GetMaxMetric(arena, newFreqnum);
 
 		if (maxMetric && newFreqMetricPotential > maxMetric)
@@ -1117,7 +1125,7 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 			{
 				Freq *f;
 				Link *link;
-			
+
 				FOR_EACH(&ad->freqs, f, link)
 				{
 					int freqMetric;
@@ -1126,7 +1134,7 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 					if (f == oldFreq || f == newFreq)
 						continue;
 					freqMetric = get_freq_metric(f, balancer);
-				
+
 					if (balancer->GetMaximumDifference(arena, newFreqnum, f->freqnum) < newFreqMetricPotential - freqMetric)
 					{
 						if (err_buf)
@@ -1137,12 +1145,12 @@ int balancer_allows_change(Player *p, int newFreqnum, char *err_buf, int buf_len
 				}
 			}
 		}
-		
+
 		mm->ReleaseInterface(balancer);
 	}
-	
+
 	pthread_mutex_unlock(&fm_mutex);
-	
+
 	return result;
 }
 
@@ -1193,7 +1201,7 @@ void update_config(Arena *arena)
 	 * If players are allowed to spectate outside of the spectator
 	 * frequency. */
 	ad->cfg_disallowTeamSpectators = cfg->GetInt(ch, "Team", "DisallowTeamSpectators", 0);
-	
+
 	/* cfghelp: Team:InitialSpec, arena, bool, def: 0
 	 * If players entering the arena are always assigned to spectator mode. */
 	ad->cfg_alwaysStartInSpec = cfg->GetInt(ch, "Team", "InitialSpec", 0);
@@ -1233,7 +1241,7 @@ void update_config(Arena *arena)
 	 * Whether the default balancer will enforce even teams. Does not apply if
 	 * a custom balancer module is used. */
 	ad->cfg_defaultBalancer_forceEvenTeams = cfg->GetInt(ch, "Team", "ForceEvenTeams", 0);
-	
+
 	/* cfghelp: Team:MaxTeamDifference, arena, int, def: 1
 	 * How many players difference the balancer should tolerate. Does not apply
 	 * if a custom balancer module is used.*/

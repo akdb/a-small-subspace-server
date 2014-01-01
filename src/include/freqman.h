@@ -36,7 +36,7 @@ typedef struct Ibalancer
 } Ibalancer;
 
 /** the adviser id for Aenforcer */
-#define A_ENFORCER "enforcer-1"
+#define A_ENFORCER "enforcer-2"
 
 /** The adviser struct for the enforcers.
  * These are designed to be implemented by non-core modules and
@@ -48,22 +48,12 @@ typedef struct Aenforcer
 	/* pyadv: use, impl */
 
 	/**
-	 * Return the allowable ships (1 = Warbird, 128 = Shark, 255 = all ships).
-	 * Return 0 to allow only spectator.
-	 * Fill err_buf only if the returned mask doesn't allow them to change
-	 * to the desired ship
-	 * NOTE: ship shouldn't factor into the returned mask.
+	 * Returns a boolean indicating whether the player can change from his
+	 * current ship/freq or not.
 	 * Only write to err_buf if it's non-null
 	 */
-	shipmask_t (*GetAllowableShips)(Player *p, int ship, int freq, char *err_buf, int buf_len);
+	 int (*IsUnlocked)(Player *p, char *err_buf, int buf_len);
 
-	/**
-	 * Returns a boolean indicating whether the player can switch to
-	 * new_freq.
-	 * Only write to err_buf it it's non-null
-	 */
-	int (*CanChangeToFreq)(Player *p, int new_freq, char *err_buf, int buf_len);
-	
 	/**
 	 * Returns a boolean indicating whether the player may enter the game at all
 	 * This is called before the frequency they are landing on is decided, so
@@ -74,11 +64,21 @@ typedef struct Aenforcer
 	int (*CanEnterGame)(Player *p, char *err_buf, int buf_len);
 
 	/**
-	 * Returns a boolean indicating whether the player can change from his
-	 * current ship/freq or not.
-	 * Only write to err_buf if it's non-null
+	 * Called when checking if a player is allowed to change to the specified ship.
 	 */
-	 int (*IsUnlocked)(Player *p, char *err_buf, int buf_len);
+	int (*CanChangeToShip)(Player *p, int new_ship, char *err_buf, int buf_len);
+
+	/**
+	 * Returns a boolean indicating whether the player can switch to
+	 * new_freq.
+	 * Only write to err_buf it it's non-null
+	 */
+	int (*CanChangeToFreq)(Player *p, int new_freq, char *err_buf, int buf_len);
+
+	/**
+	 * Called when checking what ships are allowed on the specified frequency.
+	 */
+	shipmask_t (*GetAllowableShips)(Player *p, int freq, char *err_buf, int buf_len);
 } Aenforcer;
 
 /** the interface id for Ifreqman */

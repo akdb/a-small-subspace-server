@@ -21,7 +21,7 @@ local Iflagcore *flagcore;
 
 local int pdkey;
 
-local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf, int buf_len)
+local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
 {
 	pdata *data = PPDATA(p, pdkey);
 	int shipchangeinterval, antiwarp_non_flagger, antiwarp_flagger;
@@ -31,7 +31,7 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 	shipchangeinterval = cfg->GetInt(p->arena->cfg, "Misc", "ShipChangeInterval", 500);
 
 	/* cfghelp: Misc:AntiwarpShipChange, arena, int, def, 0
-	 * prevents players without flags from changing ships 
+	 * prevents players without flags from changing ships
 	 * while antiwarped. */
 	antiwarp_non_flagger = cfg->GetInt(p->arena->cfg, "Misc", "AntiwarpShipChange", 0);
 
@@ -39,15 +39,13 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 	 * prevents players with flags from changing ships
 	 * while antiwarped. */
 	antiwarp_flagger = cfg->GetInt(p->arena->cfg, "Misc", "AntiwarpFlagShipChange", 0);
-	
-	if (data->last_change + shipchangeinterval > current_ticks() && shipchangeinterval > 0)
+
+	if (shipchangeinterval > 0 && data->last_change + shipchangeinterval > current_ticks())
 	{
-		if (err_buf && ship != p->p_ship)
-			snprintf(err_buf, buf_len, "You've changed ship too recently. Please wait.");
-		if (p->p_ship != SHIP_SPEC)
-			return SHIPMASK(p->p_ship);
-		else
-			return SHIPMASK_NONE;
+		if (err_buf)
+			snprintf(err_buf, buf_len, "You've changed ships too recently. Please wait.");
+
+		return 0;
 	}
 
 	if (p->p_ship != SHIP_SPEC
@@ -67,16 +65,14 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 
 		if ((flags && antiwarp_flagger) || (!flags && antiwarp_non_flagger))
 		{
-			if (err_buf && ship != p->p_ship)
+			if (err_buf)
 				snprintf(err_buf, buf_len, "You are antiwarped!");
-			if (p->p_ship != SHIP_SPEC)
-				return SHIPMASK(p->p_ship);
-			else
-				return SHIPMASK_NONE;
+
+			return 0;
 		}
 	}
 
-	return SHIPMASK_ALL;
+	return 1;
 }
 
 local void ship_change_cb(Player *p, int newship, int oldship, int newfreq, int oldfreq)
@@ -91,7 +87,11 @@ local void ship_change_cb(Player *p, int newship, int oldship, int newfreq, int 
 local Aenforcer myadv =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
-	GetAllowableShips, NULL
+	NULL,
+	NULL,
+	CanChangeToShip,
+	NULL,
+	NULL,
 };
 
 EXPORT const char info_enf_shipchange[] = CORE_MOD_INFO("enf_shipchange");
