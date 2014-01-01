@@ -7,11 +7,12 @@
 
 local Iconfig *cfg;
 
-local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf, int buf_len)
+
+local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_len)
 {
 	char keyBuffer[32];
 
-	shipmask_t arenaMask, freqMask, playerMask;
+	shipmask_t arenaMask, freqMask;
 	/* cfghelp: Legalship:ArenaMask, arena, int, range: 0-255, def: 255, mod: enf_legalship
 	 * The ship mask of allowed ships in the arena. 1=warbird, 2=javelin, etc. */
 	arenaMask = cfg->GetInt(p->arena->cfg, "Legalship", "ArenaMask", 255);
@@ -23,10 +24,17 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 	 * The ship mask allowed on freq 1. Ships must also be allowed on the arena mask. You can define a mask for any freq (FreqXMask). */
 	freqMask = cfg->GetInt(p->arena->cfg, "Legalship", keyBuffer, 255);
 
-	playerMask = arenaMask & freqMask;
+	return arenaMask & freqMask;
+}
 
-	if (err_buf && !SHIPMASK_HAS(ship, playerMask))
+local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
+{
+	shipmask_t playerMask = GetAllowableShips(p, p->p_freq, NULL, 0);
+	int allow = 1;
+
+	if (err_buf && !SHIPMASK_HAS(new_ship, playerMask))
 	{
+		allow = 0;
 		StringBuffer shipsDescriptor;
 
 		SBInit(&shipsDescriptor);
@@ -43,31 +51,26 @@ local shipmask_t GetAllowableShips(Player *p, int ship, int freq, char *err_buf,
 			}
 		}
 
-		if (freqMask == SHIPMASK_ALL)
-		{
-			if (playerMask == SHIPMASK_NONE)
-				snprintf(err_buf, buf_len, "You may not leave spectator mode in this arena.");
-			else
-				snprintf(err_buf, buf_len, "Your allowed ships in this arena are: %s", SBText(&shipsDescriptor, 2));
-		}
+		if (playerMask == SHIPMASK_NONE)
+			snprintf(err_buf, buf_len, "You may not leave spectator mode on this frequency.");
 		else
-		{
-			if (playerMask == SHIPMASK_NONE)
-				snprintf(err_buf, buf_len, "You may not leave spectator mode on this frequency.");
-			else
-				snprintf(err_buf, buf_len, "Your allowed ships on this frequency are: %s", SBText(&shipsDescriptor, 2));
-		}
+			snprintf(err_buf, buf_len, "Your allowed ships on this frequency are: %s", SBText(&shipsDescriptor, 2));
 
 		SBDestroy(&shipsDescriptor);
 	}
 
-	return playerMask;
+	return allow;
 }
+
 
 local Aenforcer enforceradv =
 {
 	ADVISER_HEAD_INIT(A_ENFORCER)
-	GetAllowableShips, NULL
+  NULL,
+  NULL,
+  CanChangeToShip,
+  NULL,
+	GetAllowableShips
 };
 
 EXPORT const char info_enf_legalship[] = CORE_MOD_INFO("enf_legalship");
