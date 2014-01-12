@@ -76,13 +76,16 @@ typedef struct Aenforcer
 	int (*CanChangeToFreq)(Player *p, int new_freq, char *err_buf, int buf_len);
 
 	/**
-	 * Called when checking what ships are allowed on the specified frequency.
+	 * Called when checking what ships are allowed on the specified frequency. The shipmask returned
+	 * by this function should respect the same checks that would be run if CanChangeToShip were
+	 * to be called. That is, if CanChangeToShip would return false, that ship should not be included
+	 * in the resultant shipmask.
 	 */
 	shipmask_t (*GetAllowableShips)(Player *p, int freq, char *err_buf, int buf_len);
 } Aenforcer;
 
 /** the interface id for Ifreqman */
-#define I_FREQMAN "freqman-2"
+#define I_FREQMAN "freqman-3"
 
 /** The interface struct for Ifreqman.
  * This interface is the second revision of Ifreqman. This implementation
@@ -100,15 +103,104 @@ typedef struct Ifreqman
 	 */
 	void (*Initial)(Player *p, int *ship, int *freq);
 
+	/**
+	 * Checks if the player can change to the specified ship. Does not actually perform a ship change.
+	 *
+	 * @param Player *p
+	 *	The player to check.
+	 *
+	 * @param int ship
+	 *	The ship to which the player would be changing.
+	 *
+	 * @param char *err_buf
+	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the ship change is
+	 *	not allowed. If null, no message will be retrieved.
+	 *
+	 * @param int buf_len
+	 *	The length of the error buffer. Ignored if err_buf is null.
+	 *
+	 * @return bool
+	 *	True if the player would be allowed to change to the specified ship; false otherwise.
+	 */
+	int (*CanChangeToShip)(Player *p, int ship, char *err_buf, int buf_len);
+
 	/** called when a player requests a ship change.
 	 * ship will initially contain the ship request, and freq will
-	 * contain the player's current freq. */
-	void (*ShipChange)(Player *p, int requested_ship, char *err_buf, int buf_len);
+	 * contain the player's current freq.
+	 *
+	 * @return bool
+	 *	True if the ship change was successful; false otherwise.
+	 */
+	int (*ShipChange)(Player *p, int requested_ship, char *err_buf, int buf_len);
+
+	/**
+	 * Checks if the player can change to the specified frequency. Does not actually perform a
+	 * frequency change.
+	 *
+	 * @param Player *p
+	 *	The player for which to check if a frequency change would be allowed.
+	 *
+	 * @param int freq
+	 *	The frequency to which the player would be changing.
+	 *
+	 * @param char *err_buf
+	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the frequency change
+	 *	is not allowed. If null, no message will be retrieved.
+	 *
+	 * @param int buf_len
+	 *	The length of the error buffer. Ignored if err_buf is null.
+	 *
+	 * @return bool
+	 *	True if the player would be allowed to change to the specified frequency; false otherwise.
+	 */
+	int (*CanChangeToFreq)(Player *p, int freq, char *err_buf, int buf_len);
+
+	/**
+	 * Checks if the player could change to the specified frequency if they were using the given ship.
+	 * Does not actually perform a frequency change.
+	 *
+	 * @param Player *p
+	 *	The player for which to check if a frequency change would be allowed.
+	 *
+	 * @param int freq
+	 *	The frequency to which the player would be changing.
+	 *
+	 * @param char *err_buf
+	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the frequency change
+	 *	is not allowed. If null, no message will be retrieved.
+	 *
+	 * @param int buf_len
+	 *	The length of the error buffer. Ignored if err_buf is null.
+	 *
+	 * @return bool
+	 *	True if the player would be allowed to change to the specified frequency; false otherwise.
+	 */
+	int (*CanChangeToFreqWithShip)(Player *p, int freq, int ship, char *err_buf, int buf_len);
 
 	/** called when a player requests a freq change.
 	 * ship will initially contain the player's ship, and freq will
-	 * contain the requested freq. */
-	void (*FreqChange)(Player *p, int requested_freq, char *err_buf, int buf_len);
+	 * contain the requested freq.
+	 *
+	 * @return bool
+	 *	True if the frequency change was successful; false otherwise.
+	 */
+	int (*FreqChange)(Player *p, int requested_freq, char *err_buf, int buf_len);
+
+	/**
+	 * Retrieves a shipmask representing the ships the player is allowed to use while on the specified
+	 * frequency.
+	 *
+	 * @param Player *p
+	 *	The player for which to retrieve the allowed ships.
+	 *
+	 * @param int freq
+	 *	The frequency for which to retrieve the allowed ships.
+	 *
+	 * @return shipmask_t
+	 *	A shipmask representing the ships the player is allowed to use while on the specified
+	 *	frequency.
+	 */
+	shipmask_t (*GetAllowableShips)(Player *p, int freq);
 } Ifreqman;
 
 #endif
