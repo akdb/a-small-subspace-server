@@ -48,6 +48,7 @@ local int ShipChange(Player *p, int workingShip, char *err_buf, int buf_len);
 local int CanChangeToFreqI(Player *p, int workingFreq, char *err_buf, int buf_len);
 local int CanChangeToFreqWithShipI(Player *p, int freq, int ship, char *err_buf, int buf_len);
 local int FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len);
+local int FindEntryFreq(Player *p, char *err_buf, int buf_len);
 local shipmask_t GetAllowableShipsI(Player *p, int freq);
 
 local int default_GetPlayerMetric(Player *p);
@@ -75,6 +76,7 @@ local Ifreqman freqman_interface =
 	CanChangeToFreqI,
 	CanChangeToFreqWithShipI,
 	FreqChange,
+	FindEntryFreq,
 	GetAllowableShipsI
 };
 
@@ -645,7 +647,7 @@ int CanChangeToShipI(Player *p, int workingShip, char *err_buf, int buf_len)
 	return 1;
 }
 
-static int ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
+local int ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
 {
 	Arena *arena = p->arena;
 
@@ -710,7 +712,7 @@ static int ShipChange(Player *p, int workingShip, char *err_buf, int buf_len)
 }
 
 
-static int CanChangeToFreqWithShipI(Player *p, int freq, int ship, char *err_buf, int buf_len)
+local int CanChangeToFreqWithShipI(Player *p, int freq, int ship, char *err_buf, int buf_len)
 {
 	Arena *arena = p->arena;
 
@@ -773,105 +775,12 @@ static int CanChangeToFreqWithShipI(Player *p, int freq, int ship, char *err_buf
 	return 1;
 }
 
-static int CanChangeToFreqI(Player *p, int freq, char *err_buf, int buf_len)
+local int CanChangeToFreqI(Player *p, int freq, char *err_buf, int buf_len)
 {
 	return CanChangeToFreqWithShipI(p, freq, p->p_ship, err_buf, buf_len);
-
-
-
-
-#ifdef asdkjalksdjalksjdlkasjdlkajs
-
-	/* at this point, we have a valid freq, now we just need to make sure that
-	 * the user can change to it. first, make sure just changing to the freq is
-	 * allowed. second, make sure that if spectators are only allowed on the
-	 * spec freq, that they have a ship they can use on that freq. */
-
-	if (!enforcers_can_change_to_freq(arena, p, requestedFreqnum, err_buf, buf_len))
-	{
-		/* passes along message if any */
-		return 0;
-	}
-
-	if (workingShip == SHIP_SPEC && ad->cfg_disallowTeamSpectators)
-	{
-		int i;
-		shipmask_t mask;
-		/* since they must come out of spec immediately, we must find them a
-		 * ship now. */
-		if (!enforcers_can_enter_game(arena, p, err_buf, buf_len))
-		{
-			/* passes along message if any. */
-			return 0;
-		}
-
-		mask = enforcers_get_allowable_ships(arena, p, requestedFreqnum, err_buf, buf_len);
-		for (i = SHIP_WARBIRD; i <= SHIP_SHARK; ++i)
-		{
-			if (mask & (1 << i))
-			{
-				workingShip = i;
-				break;
-			}
-		}
-	}
-	else if (workingShip != SHIP_SPEC)
-	{
-		/* since they're already in the game, we just need to make sure their
-		 * ship is legal on their new freq, or find them a new ship if it's
-		 * not */
-		shipmask_t mask = enforcers_get_allowable_ships(arena, p, requestedFreqnum, err_buf, buf_len);
-		if (!(mask & (1 << workingShip)))
-		{
-			/* if their ship is not allowed, we must find them a new ship. */
-			workingShip = SHIP_SPEC;
-			int i;
-			for (i = SHIP_WARBIRD; i <= SHIP_SHARK; ++i)
-			{
-				if (mask & (1 << i))
-				{
-					workingShip = i;
-					break;
-				}
-			}
-		}
-	}
-
-	if (err_buf && ad->cfg_disallowTeamSpectators && workingShip == SHIP_SPEC)
-	{
-		/* at this point, the person should have a ship other than ship spec
-		 * if one is required. if they don't, then we fail and report the error,
-		 * if error messages can be passed along. let's clarify why the person
-		 * cannot change to the freq, since disallowTeamSpectators is a little
-		 * weird. */
-		if (err_buf)
-		{
-			if (*err_buf != '\0')
-			{
-				/* if we have an error, let's append it. */
-				char *tempBuffer = astrdup(err_buf);
-				snprintf(err_buf, buf_len, "You cannot change to freq %d, because you could not enter a ship there (error: %s).", requestedFreqnum, tempBuffer);
-				afree(tempBuffer);
-			}
-			else
-			{
-				/* no error was given, so just use a default message. */
-				snprintf(err_buf, buf_len, "You cannot change to freq %d, because you could not enter a ship there.", requestedFreqnum);
-			}
-		}
-	}
-	else
-	{
-		/* the person passed all checks for being unlocked, being able to change
-		 * to the target freq, and having a legal ship. so we're done! */
-		return 1;
-	}
-
-	return 0;
-#endif
 }
 
-static int FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
+local int FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_len)
 {
 	Arena *arena = p->arena;
 	int workingShip = p->p_ship;
@@ -929,7 +838,13 @@ static int FreqChange(Player *p, int requestedFreqnum, char *err_buf, int buf_le
 	return 0;
 }
 
-static shipmask_t GetAllowableShipsI(Player *p, int freq)
+local int FindEntryFreq(Player *p, char *err_buf, int buf_len)
+{
+	return find_entry_freq(p->arena, p, err_buf, buf_len);
+}
+
+
+local shipmask_t GetAllowableShipsI(Player *p, int freq)
 {
 	return enforcers_get_allowable_ships(p->arena, p, freq, NULL, 0);
 }

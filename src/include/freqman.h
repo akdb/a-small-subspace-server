@@ -106,20 +106,20 @@ typedef struct Ifreqman
 	/**
 	 * Checks if the player can change to the specified ship. Does not actually perform a ship change.
 	 *
-	 * @param Player *p
+	 * @param *p
 	 *	The player to check.
 	 *
-	 * @param int ship
+	 * @param ship
 	 *	The ship to which the player would be changing.
 	 *
-	 * @param char *err_buf
+	 * @param *err_buf
 	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the ship change is
 	 *	not allowed. If null, no message will be retrieved.
 	 *
-	 * @param int buf_len
+	 * @param buf_len
 	 *	The length of the error buffer. Ignored if err_buf is null.
 	 *
-	 * @return bool
+	 * @return
 	 *	True if the player would be allowed to change to the specified ship; false otherwise.
 	 */
 	int (*CanChangeToShip)(Player *p, int ship, char *err_buf, int buf_len);
@@ -128,7 +128,7 @@ typedef struct Ifreqman
 	 * ship will initially contain the ship request, and freq will
 	 * contain the player's current freq.
 	 *
-	 * @return bool
+	 * @return
 	 *	True if the ship change was successful; false otherwise.
 	 */
 	int (*ShipChange)(Player *p, int requested_ship, char *err_buf, int buf_len);
@@ -137,20 +137,20 @@ typedef struct Ifreqman
 	 * Checks if the player can change to the specified frequency. Does not actually perform a
 	 * frequency change.
 	 *
-	 * @param Player *p
+	 * @param *p
 	 *	The player for which to check if a frequency change would be allowed.
 	 *
-	 * @param int freq
+	 * @param freq
 	 *	The frequency to which the player would be changing.
 	 *
-	 * @param char *err_buf
+	 * @param *err_buf
 	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the frequency change
 	 *	is not allowed. If null, no message will be retrieved.
 	 *
-	 * @param int buf_len
+	 * @param buf_len
 	 *	The length of the error buffer. Ignored if err_buf is null.
 	 *
-	 * @return bool
+	 * @return
 	 *	True if the player would be allowed to change to the specified frequency; false otherwise.
 	 */
 	int (*CanChangeToFreq)(Player *p, int freq, char *err_buf, int buf_len);
@@ -181,22 +181,38 @@ typedef struct Ifreqman
 	 * ship will initially contain the player's ship, and freq will
 	 * contain the requested freq.
 	 *
-	 * @return bool
+	 * @return
 	 *	True if the frequency change was successful; false otherwise.
 	 */
 	int (*FreqChange)(Player *p, int requested_freq, char *err_buf, int buf_len);
 
 	/**
+	 * Attempts to find a frequency on which to place a player who is entering the game from spectator
+	 * mode. If a frequency cannot be found, this function returns the spectator frequency.
+	 *
+	 * @param *p
+	 *	The player for which to find an entry frequency.
+	 *
+	 * @param char *err_buf
+	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the frequency change
+	 *	is not allowed. If null, no message will be retrieved.
+	 *
+	 * @param int buf_len
+	 *	The length of the error buffer. Ignored if err_buf is null.
+	 */
+	int (*FindEntryFreq)(Player *p, char *err_buf, int buf_len);
+
+	/**
 	 * Retrieves a shipmask representing the ships the player is allowed to use while on the specified
 	 * frequency.
 	 *
-	 * @param Player *p
+	 * @param *p
 	 *	The player for which to retrieve the allowed ships.
 	 *
-	 * @param int freq
+	 * @param freq
 	 *	The frequency for which to retrieve the allowed ships.
 	 *
-	 * @return shipmask_t
+	 * @return
 	 *	A shipmask representing the ships the player is allowed to use while on the specified
 	 *	frequency.
 	 */
