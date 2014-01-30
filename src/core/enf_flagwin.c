@@ -46,7 +46,7 @@ local void set_timeout(Player *p)
 	UNLOCK();
 }
 
-local int CanChangeFreq(Player *p, int new_freq, char *err_buf, int buf_len)
+local int CanChangeFreq(Player *p, int new_freq, int is_changing, char *err_buf, int buf_len)
 {
 	adata *adata = P_ARENA_DATA(p->arena, adkey);
 	ticks_t *timeout;

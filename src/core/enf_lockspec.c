@@ -5,14 +5,14 @@
 
 #include "asss.h"
 
-local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_len)
+local int CanChangeToShip(Player *p, int ship, int is_changing, char *err_buf, int buf_len)
 {
 	if (err_buf)
 	{
 		snprintf(err_buf, buf_len, "This arena does not allow players to leave spectator mode.");
 	}
 
-	return 0; // allow only spec
+	return 0;
 }
 
 local Aenforcer my_adv =
@@ -20,9 +20,9 @@ local Aenforcer my_adv =
 	ADVISER_HEAD_INIT(A_ENFORCER)
   NULL,
   NULL,
+  CanChangeToShip,
   NULL,
-  NULL,
-	GetAllowableShips
+	NULL,
 };
 
 EXPORT const char info_enf_lockspec[] = CORE_MOD_INFO("enf_lockspec");

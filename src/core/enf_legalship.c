@@ -27,14 +27,13 @@ local shipmask_t GetAllowableShips(Player *p, int freq, char *err_buf, int buf_l
 	return arenaMask & freqMask;
 }
 
-local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
+local int CanChangeToShip(Player *p, int new_ship, int is_changing, char *err_buf, int buf_len)
 {
 	shipmask_t playerMask = GetAllowableShips(p, p->p_freq, NULL, 0);
-	int allow = 1;
+	int allow = !SHIPMASK_HAS(new_ship, playerMask);
 
-	if (err_buf && !SHIPMASK_HAS(new_ship, playerMask))
+	if (err_buf && !allow)
 	{
-		allow = 0;
 		StringBuffer shipsDescriptor;
 
 		SBInit(&shipsDescriptor);

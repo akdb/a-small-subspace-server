@@ -21,7 +21,7 @@ local Iflagcore *flagcore;
 
 local int pdkey;
 
-local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
+local int CanChangeToShip(Player *p, int new_ship, int is_changing, char *err_buf, int buf_len)
 {
 	pdata *data = PPDATA(p, pdkey);
 	int shipchangeinterval, antiwarp_non_flagger, antiwarp_flagger;
