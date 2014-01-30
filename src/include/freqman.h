@@ -52,7 +52,7 @@ typedef struct Aenforcer
 	 * current ship/freq or not.
 	 * Only write to err_buf if it's non-null
 	 */
-	 int (*IsUnlocked)(Player *p, char *err_buf, int buf_len);
+	 int (*IsUnlocked)(Player *p, int is_changing, char *err_buf, int buf_len);
 
 	/**
 	 * Returns a boolean indicating whether the player may enter the game at all
@@ -61,19 +61,53 @@ typedef struct Aenforcer
 	 * spectator mode.
 	 * Only write to err_buf it it's non-null
 	 */
-	int (*CanEnterGame)(Player *p, char *err_buf, int buf_len);
+	int (*CanEnterGame)(Player *p, int is_changing, char *err_buf, int buf_len);
 
 	/**
 	 * Called when checking if a player is allowed to change to the specified ship.
+	 *
+	 * @param *p
+	 *	The player intending to change ships.
+	 *
+	 * @param new_ship
+	 *	The ship to which the player intends to change.
+	 *
+	 * @param is_changing
+	 *	Whether or not the player is actively changing ships, or simply checking if allowed.
+	 *
+	 * @param *err_buf
+	 *	[In/Out] A buffer to which an adviser may write a message if a change is to be denied.
+	 *
+	 * @param buf_len
+	 *	The length of the error message buffer.
+	 *
+	 * @return boolean
+	 *	True if the player is allowed to change to the specified ship; false otherwise.
 	 */
-	int (*CanChangeToShip)(Player *p, int new_ship, char *err_buf, int buf_len);
+	int (*CanChangeToShip)(Player *p, int new_ship, int is_changing, char *err_buf, int buf_len);
 
 	/**
-	 * Returns a boolean indicating whether the player can switch to
-	 * new_freq.
-	 * Only write to err_buf it it's non-null
+	 * Called when checking if a player is allowed to change to the specified frequency.
+	 *
+	 * @param *p
+	 *	The player intending to change ships.
+	 *
+	 * @param new_freq
+	 *	The frequency the player intends to join.
+	 *
+	 * @param is_changing
+	 *	Whether or not the player is actively changing frequencies, or simply checking if allowed.
+	 *
+	 * @param *err_buf
+	 *	[In/Out] A buffer to which an adviser may write a message if a change is to be denied.
+	 *
+	 * @param buf_len
+	 *	The length of the error message buffer.
+	 *
+	 * @return bool
+	 *	True if the player is allowed to change to the specified frequency; false otherwise.
 	 */
-	int (*CanChangeToFreq)(Player *p, int new_freq, char *err_buf, int buf_len);
+	int (*CanChangeToFreq)(Player *p, int new_freq, int is_changing, char *err_buf, int buf_len);
 
 	/**
 	 * Called when checking what ships are allowed on the specified frequency. The shipmask returned
@@ -193,6 +227,9 @@ typedef struct Ifreqman
 	 * @param *p
 	 *	The player for which to find an entry frequency.
 	 *
+	 * @param is_changing
+	 *	Whether or not the player should be considered to be changing during this check.
+	 *
 	 * @param char *err_buf
 	 *	[In/Out] A pointer to a buffer that may receive a message indicating why the frequency change
 	 *	is not allowed. If null, no message will be retrieved.
@@ -200,7 +237,7 @@ typedef struct Ifreqman
 	 * @param int buf_len
 	 *	The length of the error buffer. Ignored if err_buf is null.
 	 */
-	int (*FindEntryFreq)(Player *p, char *err_buf, int buf_len);
+	int (*FindEntryFreq)(Player *p, int is_changing, char *err_buf, int buf_len);
 
 	/**
 	 * Retrieves a shipmask representing the ships the player is allowed to use while on the specified

@@ -10,7 +10,7 @@ local Ilogman *lm;
 local Iplayerdata *pd;
 
 
-local int CanChangeToShip(Player *p, int new_ship, char *err_buf, int buf_len)
+local int CanChangeToShip(Player *p, int new_ship, int is_changing, char *err_buf, int buf_len)
 {
 	Link *link;
 	Player *x;
