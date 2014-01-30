@@ -1,5 +1,6 @@
 
 /* dist: public */
+#include <stdio.h>
 
 #include "asss.h"
 
@@ -146,7 +147,18 @@ local int timer(void *set_)
 local void cleanup(void *set_)
 {
 	periodic_settings *set = set_;
-	mm->ReleaseInterface(set->pp);
+
+	/**
+	 * Hack to check if the interface still exists. Fixes a segfaulting issue when the owning module
+	 * is forcefully unloaded while we still hold a reference.
+	 */
+	Iperiodicpoints *pp = mm->GetInterface(I_PERIODIC_POINTS, ALLARENAS);
+
+	if (pp) {
+		mm->ReleaseInterface(set->pp);
+		mm->ReleaseInterface(pp);
+	}
+
 	afree(set);
 }
 
@@ -196,6 +208,9 @@ EXPORT const char info_periodic[] = CORE_MOD_INFO("periodic");
 
 EXPORT int MM_periodic(int action, Imodman *mm_, Arena *arena)
 {
+	// Arena *arena;
+	// Link *link;
+
 	if (action == MM_LOAD)
 	{
 		mm = mm_;
