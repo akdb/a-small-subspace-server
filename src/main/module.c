@@ -392,10 +392,10 @@ int DetachModule(const char *name, Arena *arena)
 	pthread_mutex_lock(&modmtx);
 	mod = get_module_by_name(name);
 	if (mod &&
-	    is_attached(mod, arena, TRUE))
+	    is_attached(mod, arena, FALSE) &&
+	    mod->loader(MM_DETACH, &mod->args, NULL, arena) == MM_OK)
 	{
-		mod->loader(MM_DETACH, &mod->args, NULL, arena);
-		ret = MM_OK;
+		is_attached(mod, arena, TRUE);
 	}
 	pthread_mutex_unlock(&modmtx);
 	return ret;
